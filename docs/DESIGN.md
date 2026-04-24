@@ -5,7 +5,7 @@
 | Layer | Choice | Reason |
 |-------|--------|--------|
 | Language | Go | Consistent with the rest of Otter Labs |
-| Backend framework | Fiber or net/http | Same choices as OtterMQ |
+| Backend framework | Fiber | Same choices as OtterMQ |
 | API style | REST | Simpler for Go CRUD; GraphQL not justified at this scale |
 | Frontend | React | Exploring new possibilities beyond Quasar/Vue |
 | Database | PostgreSQL | Persistent relational data |
@@ -89,3 +89,48 @@ The REST API is the integration surface for AI agents. An MCP server is a thin w
 - Claude Code queries open issues before starting work via `GET /issues?status=open&assignee=me`
 
 A dedicated MCP server (thin REST wrapper) is planned as a future Nice to Have once the API is stable.
+
+---
+
+## Repository Structure
+
+Folders are created on demand as each domain is implemented — none are pre-scaffolded.
+
+```
+otterboard_git/
+├── src/
+│   ├── backend/                  ← Go application
+│   │   ├── cmd/
+│   │   │   └── api/
+│   │   │       └── main.go       ← entrypoint
+│   │   ├── internal/
+│   │   │   ├── auth/             ← OAuth, email/password, API key auth
+│   │   │   ├── workspace/        ← workspace + member management
+│   │   │   ├── project/          ← project CRUD
+│   │   │   ├── issue/            ← issue lifecycle
+│   │   │   ├── webhook/          ← webhook registration + dispatch
+│   │   │   ├── notification/     ← async jobs (email, in-app)
+│   │   │   ├── realtime/         ← SSE gateway + OtterMQ bridge
+│   │   │   ├── middleware/       ← auth, CORS, etc.
+│   │   │   ├── common/           ← shared helpers (responses, errors)
+│   │   │   ├── config/           ← app configuration
+│   │   │   └── db/
+│   │   │       └── migrations/   ← numbered up/down SQL files
+│   │   ├── pkg/
+│   │   │   └── dtos/             ← request/response structs
+│   │   ├── go.mod
+│   │   └── go.sum
+│   └── frontend/                 ← React SPA (Vite)
+└── docs/                         ← architecture docs, API specs, ADRs
+```
+
+Each domain package under `internal/` follows the same layout:
+
+```
+internal/<domain>/
+├── handler.go       ← HTTP handlers (Fiber route functions)
+├── service.go       ← business logic
+├── repository.go    ← database queries
+├── model.go         ← domain structs
+└── service_test.go  ← TDD tests
+```
