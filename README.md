@@ -9,6 +9,7 @@ A self-hosted project management tool built in Go. Part of the [Otter Labs](http
 | Layer | Choice |
 |-------|--------|
 | Language | Go |
+| Backend framework | Fiber |
 | API | REST |
 | Frontend | React |
 | Database | PostgreSQL |

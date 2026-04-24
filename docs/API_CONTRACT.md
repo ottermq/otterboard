@@ -7,12 +7,26 @@
 - Timestamps are ISO 8601 (e.g. `2024-01-15T10:30:00Z`)
 - IDs are UUIDs
 - Pagination: `?page=1&limit=20` on all list endpoints
-- Auth: `Authorization: Bearer <token>` (JWT for users, API key for agents)
+- Auth: session cookie (browser) or `Authorization: Bearer <api-key>` (agents)
+- No refresh token — sessions are managed server-side via GoodiesDB with rolling expiry; logout invalidates the session immediately
 - Errors follow a consistent shape:
 
 ```json
 {
   "error": "human-readable message"
+}
+```
+
+### Paginated response envelope
+
+All list endpoints return:
+
+```json
+{
+  "data": [...],
+  "total": 100,
+  "page": 1,
+  "limit": 20
 }
 ```
 
@@ -124,6 +138,7 @@
 |--------|------|-------------|
 | POST | `/api/v1/workspaces/:workspaceId/webhooks` | Register webhook endpoint |
 | GET | `/api/v1/workspaces/:workspaceId/webhooks` | List registered webhooks |
+| PATCH | `/api/v1/workspaces/:workspaceId/webhooks/:webhookId` | Update webhook URL or subscribed events |
 | DELETE | `/api/v1/workspaces/:workspaceId/webhooks/:webhookId` | Delete webhook |
 
 ---
@@ -133,3 +148,5 @@
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/v1/workspaces/:workspaceId/stream` | SSE stream for workspace events |
+
+Browser clients authenticate via session cookie (sent automatically). Agents authenticate via `Authorization: Bearer <api-key>` using an HTTP streaming client that supports custom headers.

@@ -7,7 +7,7 @@ The real-time stream delivers workspace events to connected browser clients via 
 - Endpoint: `GET /api/v1/workspaces/:workspaceId/stream`
 - Content-Type: `text/event-stream`
 - Scope: all events for the workspace — client ignores what it doesn't need
-- Auth: same `Authorization: Bearer <token>` header as REST endpoints
+- Auth: session cookie (browser, sent automatically) or `Authorization: Bearer <api-key>` (agents using an HTTP streaming client)
 
 ---
 

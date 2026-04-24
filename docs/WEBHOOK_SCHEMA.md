@@ -13,6 +13,25 @@ Webhooks deliver event notifications to registered endpoints via HTTP POST. Each
 - Timeout: 10 seconds per attempt
 - Retry policy: 3 attempts with exponential backoff (5s, 30s, 5min)
 - A delivery is considered successful when the endpoint returns a `2xx` status code
+- After all retries are exhausted the delivery is marked as failed and dropped — no dead-letter queue in v1; the webhook owner can inspect failures via logs
+
+---
+
+## Signature Verification
+
+Every delivery includes an HMAC signature header so receivers can verify the request came from OtterBoard:
+
+```
+X-OtterBoard-Signature: sha256=<hmac-hex>
+```
+
+The signature is computed as:
+
+```
+HMAC-SHA256(signing_key, request_body)
+```
+
+The signing key is set per webhook at registration time and stored securely. Receivers should reject requests where the signature does not match.
 
 ---
 

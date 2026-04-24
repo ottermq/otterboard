@@ -143,3 +143,17 @@ All protected endpoints run through session middleware:
 3. If valid: attach user to request context and proceed
 4. If invalid or missing: check for `Authorization: Bearer` header (API key path)
 5. If neither: return `401 Unauthorized`
+
+---
+
+## CSRF Protection
+
+Session cookies are set with `SameSite=Strict`, which prevents them from being sent on cross-site requests in all modern browsers. This is the primary CSRF defence for cookie-authenticated endpoints.
+
+API key requests are not vulnerable to CSRF — the `Authorization` header cannot be set by cross-site forms.
+
+---
+
+## Rate Limiting
+
+`POST /auth/login` and `POST /auth/register` must be rate limited to prevent brute-force attacks. Implementation details (middleware vs. GoodiesDB counter) are deferred to M1, but rate limiting is a hard requirement before these endpoints are exposed.
