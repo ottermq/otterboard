@@ -202,7 +202,7 @@ Every webhook delivery shares this top-level structure:
 
 ## Webhook Registration
 
-When registering a webhook, the caller specifies which events to subscribe to:
+When registering a webhook, the caller specifies the URL and events to subscribe to:
 
 ```json
 {
@@ -216,3 +216,17 @@ When registering a webhook, the caller specifies which events to subscribe to:
 ```
 
 An empty `events` array is invalid — at least one event type must be specified.
+
+OtterBoard generates the signing key and returns it once in the registration response. It is never retrievable again — treat it like an API key.
+
+```json
+{
+  "id": "uuid",
+  "url": "https://example.com/webhook",
+  "events": ["issue.created", "issue.assigned", "issue.status_changed"],
+  "signing_key": "raw-secret-shown-once",
+  "created_at": "2024-01-15T10:30:00Z"
+}
+```
+
+Subsequent `GET /webhooks` responses omit `signing_key`.
