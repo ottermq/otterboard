@@ -4,6 +4,9 @@ BUILD_DIR=bin
 MIGRATION_DIR=internal/db/migrations
 MAIN_PATH=./cmd/api
 
+include $(BACKEND_DIR)/.env
+export
+
 build:
 	@cd $(BACKEND_DIR) && go mod tidy
 	@cd $(BACKEND_DIR) && mkdir -p $(BUILD_DIR)
@@ -16,9 +19,9 @@ test:
 	@cd $(BACKEND_DIR) && go test -v ./...
 
 migrate-up:
-	@cd $(BACKEND_DIR) && migrate -path $(MIGRATION_DIR) -database $(DB_URL) up
+	@cd $(BACKEND_DIR) && migrate -path $(MIGRATION_DIR) -database "$(DB_URL)" up
 
 migrate-down:
-	@cd $(BACKEND_DIR) && migrate -path $(MIGRATION_DIR) -database $(DB_URL) down 1
+	@cd $(BACKEND_DIR) && migrate -path $(MIGRATION_DIR) -database "$(DB_URL)" down 1
 
 .PHONY: build run test migrate-up migrate-down
