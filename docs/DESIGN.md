@@ -9,6 +9,8 @@
 | API style | REST | Simpler for Go CRUD; GraphQL not justified at this scale |
 | Frontend | React | Exploring new possibilities beyond Quasar/Vue |
 | Database | PostgreSQL | Persistent relational data |
+| Migrations | golang-migrate (CLI) | Versioned SQL migration files; run via `make migrate-up/down`, not bundled in the binary |
+| DB access | sqlc + pgx/v5 | Type-safe Go code generated from SQL queries; no hand-written repository layer |
 | Real-time (backend) | OtterMQ | Async event routing between services; webhook delivery |
 | Real-time (browser) | SSE (Server-Sent Events) | Server → client push; simpler than WebSocket, sufficient for read-only event stream |
 | Caching / sessions | GoodiesDB | Session store, hot data cache |
@@ -104,6 +106,12 @@ otterboard_git/
 │   │   │   └── api/
 │   │   │       └── main.go       ← entrypoint
 │   │   ├── internal/
+│   │   │   ├── db/
+│   │   │   │   ├── migrations/   ← golang-migrate: numbered up/down SQL files
+│   │   │   │   ├── queries/      ← sqlc input: hand-written SQL queries
+│   │   │   │   ├── *.sql.go      ← sqlc output: generated Go code (never edit manually)
+│   │   │   │   ├── models.go     ← sqlc output: generated structs
+│   │   │   │   └── sqlc.yaml     ← sqlc configuration
 │   │   │   ├── auth/             ← OAuth, email/password, API key auth
 │   │   │   ├── workspace/        ← workspace + member management
 │   │   │   ├── project/          ← project CRUD
@@ -113,9 +121,7 @@ otterboard_git/
 │   │   │   ├── realtime/         ← SSE gateway + OtterMQ bridge
 │   │   │   ├── middleware/       ← auth, CORS, etc.
 │   │   │   ├── common/           ← shared helpers (responses, errors)
-│   │   │   ├── config/           ← app configuration
-│   │   │   └── db/
-│   │   │       └── migrations/   ← numbered up/down SQL files
+│   │   │   └── config/           ← app configuration
 │   │   ├── pkg/
 │   │   │   └── dtos/             ← request/response structs
 │   │   ├── go.mod
@@ -129,8 +135,40 @@ Each domain package under `internal/` follows the same layout:
 ```
 internal/<domain>/
 ├── handler.go       ← HTTP handlers (Fiber route functions)
-├── service.go       ← business logic
-├── repository.go    ← database queries
-├── model.go         ← domain structs
-└── service_test.go  ← TDD tests
+├── service.go       ← business logic (calls sqlc-generated queries)
+├── model.go         ← domain structs (if needed beyond sqlc models)
+└── service_test.go  ← tests
+```
+
+> `repository.go` is not used — sqlc generates the DB access layer. Domain services call the generated functions directly.
+
+---
+
+## Database Migrations
+
+Migrations are managed with the `golang-migrate` CLI — **not** bundled into the app binary. This keeps the binary lighter and gives explicit control over when migrations run.
+
+### Makefile targets
+
+```sh
+make migrate-up      # apply all pending migrations
+make migrate-down    # roll back the last migration
+```
+
+### Migration file naming
+
+```
+internal/db/migrations/
+├── 000001_create_users.up.sql
+├── 000001_create_users.down.sql
+├── 000002_create_workspaces.up.sql
+└── 000002_create_workspaces.down.sql
+```
+
+### sqlc workflow
+
+After adding or changing a query in `internal/db/queries/`:
+
+```sh
+sqlc generate    # regenerates internal/db/*.sql.go and models.go
 ```
