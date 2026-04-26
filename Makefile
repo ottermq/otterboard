@@ -1,6 +1,7 @@
 BINARY_NAME=otterboard_api
 BACKEND_DIR=src/backend
 BUILD_DIR=bin
+MIGRATION_DIR=internal/db/migrations
 MAIN_PATH=./cmd/api
 
 build:
@@ -14,4 +15,10 @@ run: build
 test:
 	@cd $(BACKEND_DIR) && go test -v ./...
 
-.PHONY: build run test
+migrate-up:
+	@cd $(BACKEND_DIR) && migrate -path $(MIGRATION_DIR) -database $(DB_URL) up
+
+migrate-down:
+	@cd $(BACKEND_DIR) && migrate -path $(MIGRATION_DIR) -database $(DB_URL) down 1
+
+.PHONY: build run test migrate-up migrate-down
