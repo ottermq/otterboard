@@ -43,3 +43,20 @@ func TestRegister_Success(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, token)
 }
+
+func TestREgister_EmailAlreadyExists(t *testing.T) {
+	store := &mockUserStore{
+		getUserByEmailFn: func(_ context.Context, _ string) (db.User, error) {
+			return db.User{}, nil // user found, no error
+		},
+	}
+
+	service := auth.NewAuthService(store, "test-secret")
+	_, err := service.Register(context.Background(), auth.RegisterInput{
+		Name:     "John Doe",
+		Email:    "john@example.com",
+		Password: "password123",
+	})
+
+	require.ErrorIs(t, err, auth.ErrEmailAlreadyExists)
+}
