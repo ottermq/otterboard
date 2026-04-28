@@ -29,29 +29,33 @@ func TestRegister_Success(t *testing.T) {
 			return db.User{}, pgx.ErrNoRows // email not taken
 		},
 		createUserFn: func(_ context.Context, arg db.CreateUserParams) (db.User, error) {
-			return db.User{}, nil
+			return db.User{
+				Email: arg.Email,
+				Name:  arg.Name,
+			}, nil
 		},
 	}
 
-	service := auth.NewAuthService(store, "test-secret")
-	token, err := service.Register(context.Background(), auth.RegisterInput{
+	service := auth.NewAuthService(store)
+	user, err := service.Register(context.Background(), auth.RegisterInput{
 		Name:     "John Doe",
 		Email:    "john@example.com",
 		Password: "password123",
 	})
 
 	require.NoError(t, err)
-	require.NotEmpty(t, token)
+	require.Equal(t, "john@example.com", user.Email)
+	require.Equal(t, "John Doe", user.Name)
 }
 
-func TestREgister_EmailAlreadyExists(t *testing.T) {
+func TestRegister_EmailAlreadyExists(t *testing.T) {
 	store := &mockUserStore{
 		getUserByEmailFn: func(_ context.Context, _ string) (db.User, error) {
 			return db.User{}, nil // user found, no error
 		},
 	}
 
-	service := auth.NewAuthService(store, "test-secret")
+	service := auth.NewAuthService(store)
 	_, err := service.Register(context.Background(), auth.RegisterInput{
 		Name:     "John Doe",
 		Email:    "john@example.com",

@@ -1,12 +1,18 @@
 package auth
 
-import "github.com/gofiber/fiber/v2"
+import (
+	"github.com/gofiber/fiber/v2"
+	"github.com/ottermq/otterboard/src/backend/internal/common"
+	"github.com/ottermq/otterboard/src/backend/pkg/dtos"
+)
 
 type Handler struct {
+	service *AuthService
 }
 
-func NewHandler() *Handler {
-	return &Handler{}
+func NewHandler(service *AuthService) *Handler {
+	return &Handler{
+		service: service}
 }
 
 func (h *Handler) Register(c *fiber.Ctx) error {
@@ -19,7 +25,22 @@ func (h *Handler) Register(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})
 	}
 
-	// call service to register user
+	user, err := h.service.Register(c.Context(), RegisterInput{
+		Email:    req.Email,
+		Password: req.Password,
+		Name:     req.Name,
+	})
+	if err != nil {
+		return common.HandlerError(c, err)
+	}
 
-	return c.JSON(fiber.Map{"message": "user registered successfully"})
+	// TODO: create seission in GoodiesDB and return session cookie
+
+	return c.Status(fiber.StatusCreated).JSON(dtos.UserDto{
+		ID:        user.ID,
+		Email:     user.Email,
+		Name:      user.Name,
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
+	})
 }
