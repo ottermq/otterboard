@@ -34,7 +34,7 @@ func (h *Handler) Register(c *fiber.Ctx) error {
 		return common.HandlerError(c, err)
 	}
 
-	// TODO: create seission in GoodiesDB and return session cookie
+	// TODO: create session in GoodiesDB and return session cookie
 
 	return c.Status(fiber.StatusCreated).JSON(dtos.UserDto{
 		ID:        user.ID,
