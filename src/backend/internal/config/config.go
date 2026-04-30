@@ -13,6 +13,7 @@ type Config struct {
 	Port        int
 	DevMode     bool
 	DatabaseURL string
+	RedisURL    string
 }
 
 func LoadConfig() *Config {
@@ -23,6 +24,7 @@ func LoadConfig() *Config {
 		Port:        getEnvAsInt("PORT", 8000),
 		DevMode:     getEnv("DEV_MODE", "false") == "true",
 		DatabaseURL: getEnv("DATABASE_URL", "postgres://user:password@localhost:5432/otterboard?sslmode=disable"),
+		RedisURL:    getEnv("REDIS_URL", "redis://localhost:6379"),
 	}
 }
 
