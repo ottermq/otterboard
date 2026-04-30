@@ -15,6 +15,7 @@ import (
 
 var (
 	ErrEmailAlreadyExists = common.NewAppError(http.StatusConflict, "email already exists")
+	ErrInvalidCredentials = common.NewAppError(http.StatusUnauthorized, "invalid credentials")
 )
 
 type UserStore interface {
@@ -24,6 +25,11 @@ type UserStore interface {
 
 type RegisterInput struct {
 	Name     string
+	Email    string
+	Password string
+}
+
+type LoginInput struct {
 	Email    string
 	Password string
 }
@@ -73,6 +79,25 @@ func (s *AuthService) Register(ctx context.Context, input RegisterInput) (User, 
 
 	return mappedUser, nil
 
+}
+
+func (s *AuthService) Login(ctx context.Context, input LoginInput) (User, error) {
+	user, err := s.store.GetUserByEmail(ctx, input.Email)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return User{}, ErrInvalidCredentials
+	}
+	if err != nil {
+		return User{}, err
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash.String), []byte(input.Password))
+	if err != nil {
+		return User{}, ErrInvalidCredentials
+	}
+
+	mappedUser := mapDbUserToAuth(user)
+
+	return mappedUser, nil
 }
 
 func mapDbUserToAuth(user db.User) User {

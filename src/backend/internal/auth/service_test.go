@@ -5,9 +5,11 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/ottermq/otterboard/src/backend/internal/auth"
 	"github.com/ottermq/otterboard/src/backend/internal/db"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type mockUserStore struct {
@@ -63,4 +65,59 @@ func TestRegister_EmailAlreadyExists(t *testing.T) {
 	})
 
 	require.ErrorIs(t, err, auth.ErrEmailAlreadyExists)
+}
+
+func TestLogin_Success(t *testing.T) {
+	store := &mockUserStore{
+		getUserByEmailFn: func(_ context.Context, _ string) (db.User, error) {
+			hash, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
+			return db.User{
+				Email:        "john@example.com",
+				PasswordHash: pgtype.Text{String: string(hash), Valid: true},
+			}, nil
+		},
+	}
+
+	service := auth.NewAuthService(store)
+	user, err := service.Login(context.Background(), auth.LoginInput{
+		Email:    "john@example.com",
+		Password: "password123",
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, "john@example.com", user.Email)
+}
+
+func TestLogin_UserNotFound(t *testing.T) {
+	store := &mockUserStore{
+		getUserByEmailFn: func(_ context.Context, _ string) (db.User, error) {
+			return db.User{}, pgx.ErrNoRows // user not found
+		},
+	}
+
+	service := auth.NewAuthService(store)
+	_, err := service.Login(context.Background(), auth.LoginInput{
+		Email:    "john@example.com",
+		Password: "whatever",
+	})
+	require.ErrorIs(t, err, auth.ErrInvalidCredentials)
+}
+
+func TestLogin_InvalidCredentials(t *testing.T) {
+	store := &mockUserStore{
+		getUserByEmailFn: func(_ context.Context, _ string) (db.User, error) {
+			return db.User{
+				Email:        "john@example.com",
+				PasswordHash: pgtype.Text{String: "$2a$10$examplehash", Valid: true},
+			}, nil
+		},
+	}
+
+	service := auth.NewAuthService(store)
+	_, err := service.Login(context.Background(), auth.LoginInput{
+		Email:    "john@example.com",
+		Password: "wrongpassword",
+	})
+
+	require.ErrorIs(t, err, auth.ErrInvalidCredentials)
 }
