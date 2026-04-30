@@ -26,15 +26,13 @@ func main() {
 
 	routes.RegisterRoutes(app)
 
-	// Initialize **Auth Service**
 	authService := auth.NewAuthService(queries)
-	authHandler := auth.NewHandler(authService)
-	routes.RegisterAuthRoutes(app, authHandler)
+	auth.RegisterAuthRoutes(app, auth.NewHandler(authService))
 
 	log.Fatal(app.Listen(fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)))
 }
-func InitializeFiber(cfg *config.Config) *fiber.App {
 
+func InitializeFiber(cfg *config.Config) *fiber.App {
 	config := fiber.Config{
 		Prefork:               !cfg.DevMode, // Disable prefork in development mode for easier debugging
 		ServerHeader:          "Otterboard API",
