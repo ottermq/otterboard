@@ -16,3 +16,11 @@ type User struct {
 	CreatedAt    pgtype.Timestamptz
 	UpdatedAt    pgtype.Timestamptz
 }
+
+type Workspace struct {
+	ID        pgtype.UUID
+	Name      string
+	OwnerID   pgtype.UUID
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+}
