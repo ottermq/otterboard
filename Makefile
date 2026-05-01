@@ -19,9 +19,9 @@ test:
 	@cd $(BACKEND_DIR) && go test -v ./...
 
 migrate-up:
-	@cd $(BACKEND_DIR) && migrate -path $(MIGRATION_DIR) -database "$(DB_URL)" up
+	@cd $(BACKEND_DIR) && migrate -path $(MIGRATION_DIR) -database "$(DATABASE_URL)" up
 
 migrate-down:
-	@cd $(BACKEND_DIR) && migrate -path $(MIGRATION_DIR) -database "$(DB_URL)" down 1
+	@cd $(BACKEND_DIR) && migrate -path $(MIGRATION_DIR) -database "$(DATABASE_URL)" down 1
 
 .PHONY: build run test migrate-up migrate-down
