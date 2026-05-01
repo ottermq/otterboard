@@ -11,3 +11,7 @@ func RegisterRoutes(app *fiber.App) {
 		})
 	})
 }
+
+func RegisterProtectedRoutes(app *fiber.App, authMiddleware fiber.Handler) fiber.Router {
+	return app.Group("/api/v1", authMiddleware)
+}

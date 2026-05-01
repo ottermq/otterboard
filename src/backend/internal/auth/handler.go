@@ -74,6 +74,19 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 	return c.JSON(mapToUserDto(user))
 }
 
+func (h *Handler) Logout(c *fiber.Ctx) error {
+	sessionID := c.Cookies("session_id")
+	if sessionID == "" {
+		return c.SendStatus(fiber.StatusNoContent)
+	}
+	err := h.sessions.Delete(c.Context(), sessionID)
+	if err != nil {
+		return common.HandlerError(c, err)
+	}
+	c.ClearCookie("session_id")
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
 func (h *Handler) createSessionAndSetCookie(c *fiber.Ctx, user User) error {
 	sessionID, err := h.sessions.Create(c.Context(), user.ID)
 	if err != nil {

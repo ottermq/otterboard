@@ -39,10 +39,10 @@ func main() {
 
 func InitializeFiber(cfg *config.Config) *fiber.App {
 	config := fiber.Config{
-		Prefork:               !cfg.DevMode, // Should be disabled in development mode for easier debugging
+		Prefork:               !cfg.DevMode,
 		ServerHeader:          "Otterboard API",
 		AppName:               "Otterboard API",
-		DisableStartupMessage: !cfg.DevMode, // Should be disabled in production mode
+		DisableStartupMessage: !cfg.DevMode,
 	}
 	app := fiber.New(config)
 	return app
