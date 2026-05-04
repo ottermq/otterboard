@@ -15,18 +15,27 @@ import (
 var (
 	ErrWorkspaceNotFound  = common.NewAppError(http.StatusNotFound, "workspace not found")
 	ErrInvalidOwnerID     = common.NewAppError(http.StatusBadRequest, "invalid owner ID")
+	ErrInvalidRequestorID = common.NewAppError(http.StatusBadRequest, "invalid requestor ID")
 	ErrInvalidWorkspaceID = common.NewAppError(http.StatusBadRequest, "invalid workspace ID")
+	ErrForbidden          = common.NewAppError(http.StatusForbidden, "forbidden")
 )
 
 type WorkspaceStore interface {
 	CreateWorkspace(ctx context.Context, arg db.CreateWorkspaceParams) (db.Workspace, error)
 	GetWorkspaceByID(ctx context.Context, id pgtype.UUID) (db.Workspace, error)
 	GetWorkspacesByOwnerID(ctx context.Context, ownerID pgtype.UUID) ([]db.Workspace, error)
+	UpdateWorkspace(ctx context.Context, arg db.UpdateWorkspaceParams) (db.Workspace, error)
 }
 
 type CreateWorkspaceInput struct {
 	Name    string
 	OwnerID string
+}
+
+type UpdateWorkspaceInput struct {
+	ID          string
+	Name        string
+	RequestorID string
 }
 
 type WorkspaceService struct {
@@ -94,6 +103,41 @@ func (w *WorkspaceService) GetWorkspacesByOwnerID(ctx context.Context, ownerID s
 		domainWorkspaces[i] = mapDbWorkspaceToDomain(ws)
 	}
 	return domainWorkspaces, nil
+}
+
+func (w *WorkspaceService) UpdateWorkspace(ctx context.Context, input UpdateWorkspaceInput) (Workspace, error) {
+	var workspaceID pgtype.UUID
+	if err := workspaceID.Scan(input.ID); err != nil {
+		return Workspace{}, ErrInvalidWorkspaceID
+	}
+	var requestorID pgtype.UUID
+	if err := requestorID.Scan(input.RequestorID); err != nil {
+		return Workspace{}, ErrInvalidRequestorID
+	}
+
+	workspace, err := w.store.GetWorkspaceByID(ctx, workspaceID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Workspace{}, ErrWorkspaceNotFound
+	}
+	if err != nil {
+		return Workspace{}, err
+	}
+
+	if workspace.OwnerID != requestorID {
+		return Workspace{}, ErrForbidden
+	}
+
+	updatedWorkspace, err := w.store.UpdateWorkspace(ctx, db.UpdateWorkspaceParams{
+		ID:   workspaceID,
+		Name: input.Name,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Workspace{}, ErrWorkspaceNotFound
+	}
+	if err != nil {
+		return Workspace{}, err
+	}
+	return mapDbWorkspaceToDomain(updatedWorkspace), nil
 }
 
 func mapDbWorkspaceToDomain(workspace db.Workspace) Workspace {
