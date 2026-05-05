@@ -7,6 +7,6 @@ func RegisterWorkspacesRoutes(api fiber.Router, h *Handler) {
 	g.Post("/", h.CreateWorkspace)
 	g.Get("/", h.ListWorkspaces)
 	g.Get("/:id", h.GetWorkspace)
-	g.Put("/:id", h.UpdateWorkspace)
+	g.Patch("/:id", h.UpdateWorkspace)
 	g.Delete("/:id", h.DeleteWorkspace)
 }
