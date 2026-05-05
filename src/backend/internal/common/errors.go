@@ -2,6 +2,7 @@ package common
 
 import (
 	"errors"
+	"log"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -22,5 +23,6 @@ func HandlerError(c *fiber.Ctx, err error) error {
 	if errors.As(err, &appErr) {
 		return c.Status(appErr.Code).JSON(fiber.Map{"error": appErr.Message})
 	}
+	log.Printf("unexpected error: %v", err)
 	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "internal server error"})
 }

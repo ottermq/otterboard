@@ -91,3 +91,14 @@ Define the foundations before any code.
 - [ ] API documentation
 - [ ] Self-hosting guide (Docker / docker-compose)
 - [ ] README with setup instructions
+
+---
+
+## Tech Debt & Cleanup
+
+Open tasks identified during PR review. Not tied to a specific milestone — pick up whenever the surrounding code is being touched.
+
+- [ ] **Structured logger** — replace `log.Printf` / `log.Fatalf` with a structured logger (`slog` or `zap`). Currently scattered across `main.go` and `common/errors.go`. Do in one pass so the call-site style is consistent.
+- [ ] **Input validation** — add `go-playground/validator/v10` to the auth package. Define a `BindAndValidate[T]` helper in `internal/common` and apply it in all auth handlers. Enforce `required,email` on email, `required,min=8,max=72` on password (bcrypt truncates at 72 bytes).
+- [ ] **Connection pool** — replace bare `pgx.Connect` in `main.go` with `pgxpool.New`. Single connection serializes all DB requests under any load.
+- [ ] **Redis unavailability** — in `AuthMiddleware`, distinguish `redis.Nil` (session not found → 401) from other errors (store down → 503). Avoids silently turning infrastructure failures into auth failures.
