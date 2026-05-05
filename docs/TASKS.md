@@ -4,21 +4,22 @@
 
 Define the foundations before any code.
 
-- [ ] Data model: workspaces, projects, issues, users, roles
-- [ ] API contract: resource naming, endpoint structure, query parameters
-- [ ] Webhook schema: event types, payload format, delivery guarantees
-- [ ] Auth flow: OAuth providers, email/password, API key structure
-- [ ] SSE event schema: what events get pushed and in what format
-- [ ] Folder structure and Go module setup
+- [x] Data model: workspaces, projects, issues, users, roles
+- [x] API contract: resource naming, endpoint structure, query parameters
+- [x] Webhook schema: event types, payload format, delivery guarantees
+- [x] Auth flow: OAuth providers, email/password, API key structure
+- [x] SSE event schema: what events get pushed and in what format
+- [x] Folder structure and Go module setup
 
 ---
 
 ## M1 — Auth + Workspace + Members
 
 - [ ] OAuth login (at least one provider)
-- [ ] Email/password login and registration
+- [x] Email/password login and registration
 - [ ] API key creation and revocation
-- [ ] Workspace creation
+- [x] Workspace creation
+- [x] Workspace read, update, delete (owner only)
 - [ ] Member invite via shareable link
 - [ ] Role assignment (Guest, Member, Administrator)
 - [ ] Permission checks across all workspace-scoped operations
