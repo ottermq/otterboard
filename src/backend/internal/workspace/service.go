@@ -25,6 +25,7 @@ type WorkspaceStore interface {
 	GetWorkspaceByID(ctx context.Context, id pgtype.UUID) (db.Workspace, error)
 	GetWorkspacesByOwnerID(ctx context.Context, ownerID pgtype.UUID) ([]db.Workspace, error)
 	UpdateWorkspace(ctx context.Context, arg db.UpdateWorkspaceParams) (db.Workspace, error)
+	DeleteWorkspace(ctx context.Context, id pgtype.UUID) error
 }
 
 type CreateWorkspaceInput struct {
@@ -35,6 +36,11 @@ type CreateWorkspaceInput struct {
 type UpdateWorkspaceInput struct {
 	ID          string
 	Name        string
+	RequestorID string
+}
+
+type DeleteWorkspaceInput struct {
+	ID          string
 	RequestorID string
 }
 
@@ -138,6 +144,34 @@ func (w *WorkspaceService) UpdateWorkspace(ctx context.Context, input UpdateWork
 		return Workspace{}, err
 	}
 	return mapDbWorkspaceToDomain(updatedWorkspace), nil
+}
+
+func (w *WorkspaceService) DeleteWorkspace(ctx context.Context, input DeleteWorkspaceInput) error {
+	var workspaceID pgtype.UUID
+	if err := workspaceID.Scan(input.ID); err != nil {
+		return ErrInvalidWorkspaceID
+	}
+	var requestorID pgtype.UUID
+	if err := requestorID.Scan(input.RequestorID); err != nil {
+		return ErrInvalidRequestorID
+	}
+
+	workspace, err := w.store.GetWorkspaceByID(ctx, workspaceID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrWorkspaceNotFound
+	}
+	if err != nil {
+		return err
+	}
+	if workspace.OwnerID != requestorID {
+		return ErrForbidden
+	}
+
+	err = w.store.DeleteWorkspace(ctx, workspaceID)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func mapDbWorkspaceToDomain(workspace db.Workspace) Workspace {

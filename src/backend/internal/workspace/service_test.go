@@ -2,6 +2,7 @@ package workspace_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/jackc/pgx/v5"
@@ -16,6 +17,7 @@ type mockWorkspaceStore struct {
 	getWorkspaceByIDFn       func(ctx context.Context, id pgtype.UUID) (db.Workspace, error)
 	getWorkspacesByOwnerIDFn func(ctx context.Context, ownerID pgtype.UUID) ([]db.Workspace, error)
 	updateWorkspaceFn        func(ctx context.Context, arg db.UpdateWorkspaceParams) (db.Workspace, error)
+	deleteWorkspaceFn        func(ctx context.Context, id pgtype.UUID) error
 }
 
 func (m *mockWorkspaceStore) CreateWorkspace(ctx context.Context, arg db.CreateWorkspaceParams) (db.Workspace, error) {
@@ -32,6 +34,10 @@ func (m *mockWorkspaceStore) GetWorkspacesByOwnerID(ctx context.Context, ownerID
 
 func (m *mockWorkspaceStore) UpdateWorkspace(ctx context.Context, arg db.UpdateWorkspaceParams) (db.Workspace, error) {
 	return m.updateWorkspaceFn(ctx, arg)
+}
+
+func (m *mockWorkspaceStore) DeleteWorkspace(ctx context.Context, id pgtype.UUID) error {
+	return m.deleteWorkspaceFn(ctx, id)
 }
 
 func TestCreateWorkspace_Success(t *testing.T) {
@@ -287,4 +293,167 @@ func TestUpdateWorkspace_InvalidRequestorID(t *testing.T) {
 	})
 	require.Error(t, err)
 	require.ErrorIs(t, err, workspace.ErrInvalidRequestorID)
+}
+
+func TestDeleteWorkspace_Success(t *testing.T) {
+	workspaceID := pgtype.UUID{}
+	err := workspaceID.Scan("89e41058-2e01-487e-ad8c-8e9e35c31987")
+	require.NoError(t, err)
+	ownerID := pgtype.UUID{}
+	err = ownerID.Scan("123e4567-e89b-12d3-a456-426614174000")
+	require.NoError(t, err)
+
+	deleteCalled := false
+	store := &mockWorkspaceStore{
+		getWorkspaceByIDFn: func(_ context.Context, id pgtype.UUID) (db.Workspace, error) {
+			require.Equal(t, workspaceID, id)
+			return db.Workspace{
+				ID:      id,
+				Name:    "Test Workspace",
+				OwnerID: ownerID,
+			}, nil
+		},
+		deleteWorkspaceFn: func(_ context.Context, id pgtype.UUID) error {
+			require.Equal(t, workspaceID, id)
+			deleteCalled = true
+			return nil
+		},
+	}
+
+	service := workspace.NewWorkspaceService(store)
+	err = service.DeleteWorkspace(context.Background(), workspace.DeleteWorkspaceInput{
+		ID:          workspaceID.String(),
+		RequestorID: ownerID.String(),
+	})
+	require.NoError(t, err)
+	require.True(t, deleteCalled)
+}
+
+func TestDeleteWorkspace_InvalidWorkspaceID(t *testing.T) {
+	store := &mockWorkspaceStore{}
+
+	service := workspace.NewWorkspaceService(store)
+	err := service.DeleteWorkspace(context.Background(), workspace.DeleteWorkspaceInput{
+		ID:          "invalid-uuid",
+		RequestorID: "123e4567-e89b-12d3-a456-426614174000",
+	})
+	require.Error(t, err)
+	require.ErrorIs(t, err, workspace.ErrInvalidWorkspaceID)
+}
+
+func TestDeleteWorkspace_InvalidRequestorID(t *testing.T) {
+	workspaceID := pgtype.UUID{}
+	err := workspaceID.Scan("89e41058-2e01-487e-ad8c-8e9e35c31987")
+	require.NoError(t, err)
+
+	store := &mockWorkspaceStore{}
+
+	service := workspace.NewWorkspaceService(store)
+	err = service.DeleteWorkspace(context.Background(), workspace.DeleteWorkspaceInput{
+		ID:          workspaceID.String(),
+		RequestorID: "invalid-uuid",
+	})
+	require.Error(t, err)
+	require.ErrorIs(t, err, workspace.ErrInvalidRequestorID)
+}
+
+func TestDeleteWorkspace_WorkspaceNotFound(t *testing.T) {
+	workspaceID := pgtype.UUID{}
+	err := workspaceID.Scan("89e41058-2e01-487e-ad8c-8e9e35c31987")
+	require.NoError(t, err)
+
+	store := &mockWorkspaceStore{
+		getWorkspaceByIDFn: func(_ context.Context, id pgtype.UUID) (db.Workspace, error) {
+			require.Equal(t, workspaceID, id)
+			return db.Workspace{}, pgx.ErrNoRows
+		},
+	}
+
+	service := workspace.NewWorkspaceService(store)
+	err = service.DeleteWorkspace(context.Background(), workspace.DeleteWorkspaceInput{
+		ID:          workspaceID.String(),
+		RequestorID: "123e4567-e89b-12d3-a456-426614174000",
+	})
+	require.ErrorIs(t, err, workspace.ErrWorkspaceNotFound)
+}
+
+func TestDeleteWorkspace_Forbidden(t *testing.T) {
+	workspaceID := pgtype.UUID{}
+	err := workspaceID.Scan("89e41058-2e01-487e-ad8c-8e9e35c31987")
+	require.NoError(t, err)
+	ownerID := pgtype.UUID{}
+	err = ownerID.Scan("123e4567-e89b-12d3-a456-426614174000")
+	require.NoError(t, err)
+
+	store := &mockWorkspaceStore{
+		getWorkspaceByIDFn: func(_ context.Context, id pgtype.UUID) (db.Workspace, error) {
+			return db.Workspace{
+				ID:      id,
+				Name:    "Test Workspace",
+				OwnerID: ownerID,
+			}, nil
+		},
+	}
+
+	service := workspace.NewWorkspaceService(store)
+	err = service.DeleteWorkspace(context.Background(), workspace.DeleteWorkspaceInput{
+		ID:          workspaceID.String(),
+		RequestorID: "123e4567-e89b-12d3-a456-426614174001",
+	})
+	require.ErrorIs(t, err, workspace.ErrForbidden)
+}
+
+func TestDeleteWorkspace_GetWorkspaceError(t *testing.T) {
+	workspaceID := pgtype.UUID{}
+	err := workspaceID.Scan("89e41058-2e01-487e-ad8c-8e9e35c31987")
+	require.NoError(t, err)
+	ownerID := pgtype.UUID{}
+	err = ownerID.Scan("123e4567-e89b-12d3-a456-426614174000")
+	require.NoError(t, err)
+	expectedErr := errors.New("get workspace failed")
+
+	store := &mockWorkspaceStore{
+		getWorkspaceByIDFn: func(_ context.Context, id pgtype.UUID) (db.Workspace, error) {
+			require.Equal(t, workspaceID, id)
+			return db.Workspace{}, expectedErr
+		},
+	}
+
+	service := workspace.NewWorkspaceService(store)
+	err = service.DeleteWorkspace(context.Background(), workspace.DeleteWorkspaceInput{
+		ID:          workspaceID.String(),
+		RequestorID: ownerID.String(),
+	})
+	require.ErrorIs(t, err, expectedErr)
+}
+
+func TestDeleteWorkspace_DeleteError(t *testing.T) {
+	workspaceID := pgtype.UUID{}
+	err := workspaceID.Scan("89e41058-2e01-487e-ad8c-8e9e35c31987")
+	require.NoError(t, err)
+	ownerID := pgtype.UUID{}
+	err = ownerID.Scan("123e4567-e89b-12d3-a456-426614174000")
+	require.NoError(t, err)
+	expectedErr := errors.New("delete workspace failed")
+
+	store := &mockWorkspaceStore{
+		getWorkspaceByIDFn: func(_ context.Context, id pgtype.UUID) (db.Workspace, error) {
+			return db.Workspace{
+				ID:      id,
+				Name:    "Test Workspace",
+				OwnerID: ownerID,
+			}, nil
+		},
+		deleteWorkspaceFn: func(_ context.Context, id pgtype.UUID) error {
+			require.Equal(t, workspaceID, id)
+			return expectedErr
+		},
+	}
+
+	service := workspace.NewWorkspaceService(store)
+	err = service.DeleteWorkspace(context.Background(), workspace.DeleteWorkspaceInput{
+		ID:          workspaceID.String(),
+		RequestorID: ownerID.String(),
+	})
+	require.ErrorIs(t, err, expectedErr)
 }
