@@ -1,6 +1,8 @@
 package routes
 
-import "github.com/gofiber/fiber/v2"
+import (
+	"github.com/gofiber/fiber/v2"
+)
 
 func RegisterRoutes(app *fiber.App) {
 	app.Get("/api/v1/health", func(c *fiber.Ctx) error {
@@ -8,4 +10,8 @@ func RegisterRoutes(app *fiber.App) {
 			"status": "ok",
 		})
 	})
+}
+
+func RegisterProtectedRoutes(app *fiber.App, authMiddleware fiber.Handler) fiber.Router {
+	return app.Group("/api/v1", authMiddleware)
 }
