@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/ottermq/otterboard/src/backend/internal/common"
 	"github.com/ottermq/otterboard/src/backend/internal/db"
@@ -55,6 +56,10 @@ func NewAuthService(store UserStore) *AuthService {
 func (s *AuthService) Register(ctx context.Context, input RegisterInput) (User, error) {
 	_, err := s.store.GetUserByEmail(ctx, input.Email)
 	if err == nil {
+		return User{}, ErrEmailAlreadyExists
+	}
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 		return User{}, ErrEmailAlreadyExists
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
