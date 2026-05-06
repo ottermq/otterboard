@@ -24,3 +24,10 @@ type Workspace struct {
 	CreatedAt pgtype.Timestamptz
 	UpdatedAt pgtype.Timestamptz
 }
+
+type WorkspaceMember struct {
+	WorkspaceID pgtype.UUID
+	UserID      pgtype.UUID
+	Role        string
+	JoinedAt    pgtype.Timestamptz
+}
