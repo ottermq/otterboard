@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/ottermq/otterboard/src/backend/internal/common"
 	"github.com/ottermq/otterboard/src/backend/internal/db"
 	"github.com/ottermq/otterboard/src/backend/internal/workspace"
 	"github.com/stretchr/testify/require"
@@ -218,7 +219,7 @@ func TestUpdateWorkspace_InvalidWorkspaceID(t *testing.T) {
 		RequestorID: "123e4567-e89b-12d3-a456-426614174000",
 	})
 	require.Error(t, err)
-	require.ErrorIs(t, err, workspace.ErrInvalidWorkspaceID)
+	require.ErrorIs(t, err, common.ErrInvalidWorkspaceID)
 }
 
 func TestUpdateWorkspace_WorkspaceNotFound(t *testing.T) {
@@ -271,7 +272,7 @@ func TestUpdateWorkspace_Forbidden(t *testing.T) {
 		Name:        "Updated Workspace Name",
 		RequestorID: "123e4567-e89b-12d3-a456-426614174001", // different owner ID than existing workspace
 	})
-	require.ErrorIs(t, err, workspace.ErrForbidden)
+	require.ErrorIs(t, err, common.ErrForbidden)
 }
 
 func TestUpdateWorkspace_InvalidRequestorID(t *testing.T) {
@@ -292,7 +293,7 @@ func TestUpdateWorkspace_InvalidRequestorID(t *testing.T) {
 		RequestorID: "invalid-uuid",
 	})
 	require.Error(t, err)
-	require.ErrorIs(t, err, workspace.ErrInvalidRequestorID)
+	require.ErrorIs(t, err, common.ErrInvalidRequestorID)
 }
 
 func TestDeleteWorkspace_Success(t *testing.T) {
@@ -338,7 +339,7 @@ func TestDeleteWorkspace_InvalidWorkspaceID(t *testing.T) {
 		RequestorID: "123e4567-e89b-12d3-a456-426614174000",
 	})
 	require.Error(t, err)
-	require.ErrorIs(t, err, workspace.ErrInvalidWorkspaceID)
+	require.ErrorIs(t, err, common.ErrInvalidWorkspaceID)
 }
 
 func TestDeleteWorkspace_InvalidRequestorID(t *testing.T) {
@@ -354,7 +355,7 @@ func TestDeleteWorkspace_InvalidRequestorID(t *testing.T) {
 		RequestorID: "invalid-uuid",
 	})
 	require.Error(t, err)
-	require.ErrorIs(t, err, workspace.ErrInvalidRequestorID)
+	require.ErrorIs(t, err, common.ErrInvalidRequestorID)
 }
 
 func TestDeleteWorkspace_WorkspaceNotFound(t *testing.T) {
@@ -400,7 +401,7 @@ func TestDeleteWorkspace_Forbidden(t *testing.T) {
 		ID:          workspaceID.String(),
 		RequestorID: "123e4567-e89b-12d3-a456-426614174001",
 	})
-	require.ErrorIs(t, err, workspace.ErrForbidden)
+	require.ErrorIs(t, err, common.ErrForbidden)
 }
 
 func TestDeleteWorkspace_GetWorkspaceError(t *testing.T) {

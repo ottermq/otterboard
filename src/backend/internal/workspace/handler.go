@@ -51,7 +51,7 @@ func (h *Handler) GetWorkspace(c *fiber.Ctx) error {
 		return common.HandlerError(c, err)
 	}
 	if workspace.OwnerID != userID {
-		return common.HandlerError(c, ErrForbidden)
+		return common.HandlerError(c, common.ErrForbidden)
 	}
 
 	return c.JSON(mapToWorkspaceDto(workspace))
