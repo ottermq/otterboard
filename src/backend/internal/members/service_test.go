@@ -41,6 +41,14 @@ func (m *mockMemberStore) RemoveMember(ctx context.Context, arg db.RemoveMemberP
 	return m.removeMemberFn(ctx, arg)
 }
 
+func mustUUID(t *testing.T, id string) pgtype.UUID {
+	t.Helper()
+
+	var uuid pgtype.UUID
+	require.NoError(t, uuid.Scan(id))
+	return uuid
+}
+
 func TestAddMember_Success(t *testing.T) {
 	store := &mockMemberStore{
 		getMemberFn: func(_ context.Context, _ db.GetMemberParams) (db.WorkspaceMember, error) {
@@ -126,4 +134,60 @@ func TestAddMember_StoreError(t *testing.T) {
 	})
 
 	require.ErrorIs(t, err, expectedErr)
+}
+
+func TestListMembers_InvalidWorkspaceID(t *testing.T) {
+	store := &mockMemberStore{
+		listMembersFn: func(_ context.Context, _ pgtype.UUID) ([]db.WorkspaceMember, error) {
+			t.Fatal("ListMembers should not be called with an invalid workspace ID")
+			return nil, nil
+		},
+	}
+
+	service := members.NewMemberService(store)
+	_, err := service.ListMembers(context.Background(), "not-a-uuid")
+
+	require.ErrorIs(t, err, common.ErrInvalidWorkspaceID)
+}
+
+func TestListMembers_StoreError(t *testing.T) {
+	expectedErr := errors.New("store error")
+	store := &mockMemberStore{
+		listMembersFn: func(_ context.Context, workspaceID pgtype.UUID) ([]db.WorkspaceMember, error) {
+			require.Equal(t, "11111111-1111-1111-1111-111111111111", workspaceID.String())
+			return nil, expectedErr
+		},
+	}
+
+	service := members.NewMemberService(store)
+	_, err := service.ListMembers(context.Background(), "11111111-1111-1111-1111-111111111111")
+
+	require.ErrorIs(t, err, expectedErr)
+}
+
+func TestListMembers_Success(t *testing.T) {
+	expectedMembers := []db.WorkspaceMember{
+		{
+			WorkspaceID: mustUUID(t, "11111111-1111-1111-1111-111111111111"),
+			UserID:      mustUUID(t, "22222222-2222-2222-2222-222222222222"),
+			Role:        "administrator",
+		},
+		{
+			WorkspaceID: mustUUID(t, "11111111-1111-1111-1111-111111111111"),
+			UserID:      mustUUID(t, "33333333-3333-3333-3333-333333333333"),
+			Role:        "member",
+		},
+	}
+	store := &mockMemberStore{
+		listMembersFn: func(_ context.Context, workspaceID pgtype.UUID) ([]db.WorkspaceMember, error) {
+			require.Equal(t, "11111111-1111-1111-1111-111111111111", workspaceID.String())
+			return expectedMembers, nil
+		},
+	}
+
+	service := members.NewMemberService(store)
+	memberships, err := service.ListMembers(context.Background(), "11111111-1111-1111-1111-111111111111")
+
+	require.NoError(t, err)
+	require.Equal(t, expectedMembers, memberships)
 }

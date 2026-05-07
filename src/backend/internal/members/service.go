@@ -68,3 +68,11 @@ func (s *MemberService) AddMember(ctx context.Context, input AddMemberInput) (db
 	}
 	return membership, nil
 }
+
+func (s *MemberService) ListMembers(ctx context.Context, workspaceID string) ([]db.WorkspaceMember, error) {
+	var workspaceUUID pgtype.UUID
+	if err := workspaceUUID.Scan(workspaceID); err != nil {
+		return nil, common.ErrInvalidWorkspaceID
+	}
+	return s.store.ListMembers(ctx, workspaceUUID)
+}
