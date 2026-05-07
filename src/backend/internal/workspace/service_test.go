@@ -41,10 +41,16 @@ func (m *mockWorkspaceStore) DeleteWorkspace(ctx context.Context, id pgtype.UUID
 	return m.deleteWorkspaceFn(ctx, id)
 }
 
+func mustUUID(t *testing.T, id string) pgtype.UUID {
+	t.Helper()
+
+	var uuid pgtype.UUID
+	require.NoError(t, uuid.Scan(id))
+	return uuid
+}
+
 func TestCreateWorkspace_Success(t *testing.T) {
-	ownerID := pgtype.UUID{}
-	err := ownerID.Scan("89e41058-2e01-487e-ad8c-8e9e35c31987")
-	require.NoError(t, err)
+	ownerID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
 
 	store := &mockWorkspaceStore{
 		createWorkspaceFn: func(_ context.Context, arg db.CreateWorkspaceParams) (db.Workspace, error) {
@@ -66,12 +72,8 @@ func TestCreateWorkspace_Success(t *testing.T) {
 }
 
 func TestGetWorkspaceByID_Success(t *testing.T) {
-	workspaceID := pgtype.UUID{}
-	err := workspaceID.Scan("89e41058-2e01-487e-ad8c-8e9e35c31987")
-	require.NoError(t, err)
-	ownerID := pgtype.UUID{}
-	err = ownerID.Scan("123e4567-e89b-12d3-a456-426614174000")
-	require.NoError(t, err)
+	workspaceID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
+	ownerID := mustUUID(t, "22222222-2222-2222-2222-222222222222")
 
 	store := &mockWorkspaceStore{
 		getWorkspaceByIDFn: func(_ context.Context, id pgtype.UUID) (db.Workspace, error) {
@@ -92,9 +94,7 @@ func TestGetWorkspaceByID_Success(t *testing.T) {
 }
 
 func TestGetWorkspaceByID_NotFound(t *testing.T) {
-	workspaceID := pgtype.UUID{}
-	err := workspaceID.Scan("89e41058-2e01-487e-ad8c-8e9e35c31987")
-	require.NoError(t, err)
+	workspaceID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
 
 	store := &mockWorkspaceStore{
 		getWorkspaceByIDFn: func(_ context.Context, id pgtype.UUID) (db.Workspace, error) {
@@ -103,7 +103,7 @@ func TestGetWorkspaceByID_NotFound(t *testing.T) {
 	}
 
 	service := workspace.NewWorkspaceService(store)
-	_, err = service.GetWorkspaceByID(context.Background(), workspaceID.String())
+	_, err := service.GetWorkspaceByID(context.Background(), workspaceID.String())
 	require.ErrorIs(t, err, workspace.ErrWorkspaceNotFound)
 }
 
@@ -127,20 +127,18 @@ func TestCreateWorkspace_InvalidOwnerID(t *testing.T) {
 }
 
 func TestGetWorkspacesByOwnerID_Success(t *testing.T) {
-	ownerID := pgtype.UUID{}
-	err := ownerID.Scan("123e4567-e89b-12d3-a456-426614174000")
-	require.NoError(t, err)
+	ownerID := mustUUID(t, "123e4567-e89b-12d3-a456-426614174000")
 
 	store := &mockWorkspaceStore{
 		getWorkspacesByOwnerIDFn: func(_ context.Context, id pgtype.UUID) ([]db.Workspace, error) {
 			return []db.Workspace{
 				{
-					ID:      pgtype.UUID{Bytes: [16]byte{0x89, 0xe4, 0x10, 0x58, 0x2e, 0x01, 0x48, 0x7e, 0xad, 0x8c, 0x8e, 0x9e, 0x35, 0xc3, 0x19, 0x87}, Valid: true},
+					ID:      mustUUID(t, "89e41058-2e01-487e-ad8c-8e9e35c31987"),
 					Name:    "Workspace 1",
 					OwnerID: id,
 				},
 				{
-					ID:      pgtype.UUID{Bytes: [16]byte{0x98, 0xe4, 0x10, 0x58, 0x2e, 0x01, 0x48, 0x7e, 0xad, 0x8c, 0x8e, 0x9e, 0x35, 0xc3, 0x19, 0x88}, Valid: true},
+					ID:      mustUUID(t, "98e41058-2e01-487e-ad8c-8e9e35c31988"),
 					Name:    "Workspace 2",
 					OwnerID: id,
 				},
@@ -171,12 +169,8 @@ func TestGetWorkspacesByOwnerID_InvalidOwnerID(t *testing.T) {
 }
 
 func TestUpdateWorkspace_Success(t *testing.T) {
-	workspaceID := pgtype.UUID{}
-	err := workspaceID.Scan("89e41058-2e01-487e-ad8c-8e9e35c31987")
-	require.NoError(t, err)
-	ownerID := pgtype.UUID{}
-	err = ownerID.Scan("123e4567-e89b-12d3-a456-426614174000")
-	require.NoError(t, err)
+	workspaceID := mustUUID(t, "89e41058-2e01-487e-ad8c-8e9e35c31987")
+	ownerID := mustUUID(t, "123e4567-e89b-12d3-a456-426614174000")
 
 	store := &mockWorkspaceStore{
 		getWorkspaceByIDFn: func(_ context.Context, id pgtype.UUID) (db.Workspace, error) {
@@ -223,9 +217,7 @@ func TestUpdateWorkspace_InvalidWorkspaceID(t *testing.T) {
 }
 
 func TestUpdateWorkspace_WorkspaceNotFound(t *testing.T) {
-	workspaceID := pgtype.UUID{}
-	err := workspaceID.Scan("89e41058-2e01-487e-ad8c-8e9e35c31987")
-	require.NoError(t, err)
+	workspaceID := mustUUID(t, "89e41058-2e01-487e-ad8c-8e9e35c31987")
 
 	store := &mockWorkspaceStore{
 		getWorkspaceByIDFn: func(_ context.Context, _ pgtype.UUID) (db.Workspace, error) {
@@ -237,7 +229,7 @@ func TestUpdateWorkspace_WorkspaceNotFound(t *testing.T) {
 	}
 
 	service := workspace.NewWorkspaceService(store)
-	_, err = service.UpdateWorkspace(context.Background(), workspace.UpdateWorkspaceInput{
+	_, err := service.UpdateWorkspace(context.Background(), workspace.UpdateWorkspaceInput{
 		ID:          workspaceID.String(),
 		Name:        "Updated Workspace Name",
 		RequestorID: "123e4567-e89b-12d3-a456-426614174000",
@@ -246,12 +238,9 @@ func TestUpdateWorkspace_WorkspaceNotFound(t *testing.T) {
 }
 
 func TestUpdateWorkspace_Forbidden(t *testing.T) {
-	workspaceID := pgtype.UUID{}
-	err := workspaceID.Scan("89e41058-2e01-487e-ad8c-8e9e35c31987")
-	require.NoError(t, err)
-	ownerID := pgtype.UUID{}
-	err = ownerID.Scan("123e4567-e89b-12d3-a456-426614174000")
-	require.NoError(t, err)
+	workspaceID := mustUUID(t, "89e41058-2e01-487e-ad8c-8e9e35c31987")
+
+	ownerID := mustUUID(t, "123e4567-e89b-12d3-a456-426614174000")
 
 	store := &mockWorkspaceStore{
 		getWorkspaceByIDFn: func(_ context.Context, id pgtype.UUID) (db.Workspace, error) {
@@ -267,7 +256,7 @@ func TestUpdateWorkspace_Forbidden(t *testing.T) {
 	}
 
 	service := workspace.NewWorkspaceService(store)
-	_, err = service.UpdateWorkspace(context.Background(), workspace.UpdateWorkspaceInput{
+	_, err := service.UpdateWorkspace(context.Background(), workspace.UpdateWorkspaceInput{
 		ID:          workspaceID.String(),
 		Name:        "Updated Workspace Name",
 		RequestorID: "123e4567-e89b-12d3-a456-426614174001", // different owner ID than existing workspace
@@ -276,9 +265,7 @@ func TestUpdateWorkspace_Forbidden(t *testing.T) {
 }
 
 func TestUpdateWorkspace_InvalidRequestorID(t *testing.T) {
-	workspaceID := pgtype.UUID{}
-	err := workspaceID.Scan("89e41058-2e01-487e-ad8c-8e9e35c31987")
-	require.NoError(t, err)
+	workspaceID := mustUUID(t, "89e41058-2e01-487e-ad8c-8e9e35c31987")
 
 	store := &mockWorkspaceStore{
 		updateWorkspaceFn: func(_ context.Context, arg db.UpdateWorkspaceParams) (db.Workspace, error) {
@@ -287,7 +274,7 @@ func TestUpdateWorkspace_InvalidRequestorID(t *testing.T) {
 	}
 
 	service := workspace.NewWorkspaceService(store)
-	_, err = service.UpdateWorkspace(context.Background(), workspace.UpdateWorkspaceInput{
+	_, err := service.UpdateWorkspace(context.Background(), workspace.UpdateWorkspaceInput{
 		ID:          workspaceID.String(),
 		Name:        "Updated Workspace Name",
 		RequestorID: "invalid-uuid",
@@ -297,12 +284,8 @@ func TestUpdateWorkspace_InvalidRequestorID(t *testing.T) {
 }
 
 func TestDeleteWorkspace_Success(t *testing.T) {
-	workspaceID := pgtype.UUID{}
-	err := workspaceID.Scan("89e41058-2e01-487e-ad8c-8e9e35c31987")
-	require.NoError(t, err)
-	ownerID := pgtype.UUID{}
-	err = ownerID.Scan("123e4567-e89b-12d3-a456-426614174000")
-	require.NoError(t, err)
+	workspaceID := mustUUID(t, "89e41058-2e01-487e-ad8c-8e9e35c31987")
+	ownerID := mustUUID(t, "123e4567-e89b-12d3-a456-426614174000")
 
 	deleteCalled := false
 	store := &mockWorkspaceStore{
@@ -322,7 +305,7 @@ func TestDeleteWorkspace_Success(t *testing.T) {
 	}
 
 	service := workspace.NewWorkspaceService(store)
-	err = service.DeleteWorkspace(context.Background(), workspace.DeleteWorkspaceInput{
+	err := service.DeleteWorkspace(context.Background(), workspace.DeleteWorkspaceInput{
 		ID:          workspaceID.String(),
 		RequestorID: ownerID.String(),
 	})
@@ -343,14 +326,12 @@ func TestDeleteWorkspace_InvalidWorkspaceID(t *testing.T) {
 }
 
 func TestDeleteWorkspace_InvalidRequestorID(t *testing.T) {
-	workspaceID := pgtype.UUID{}
-	err := workspaceID.Scan("89e41058-2e01-487e-ad8c-8e9e35c31987")
-	require.NoError(t, err)
+	workspaceID := mustUUID(t, "89e41058-2e01-487e-ad8c-8e9e35c31987")
 
 	store := &mockWorkspaceStore{}
 
 	service := workspace.NewWorkspaceService(store)
-	err = service.DeleteWorkspace(context.Background(), workspace.DeleteWorkspaceInput{
+	err := service.DeleteWorkspace(context.Background(), workspace.DeleteWorkspaceInput{
 		ID:          workspaceID.String(),
 		RequestorID: "invalid-uuid",
 	})
@@ -359,9 +340,7 @@ func TestDeleteWorkspace_InvalidRequestorID(t *testing.T) {
 }
 
 func TestDeleteWorkspace_WorkspaceNotFound(t *testing.T) {
-	workspaceID := pgtype.UUID{}
-	err := workspaceID.Scan("89e41058-2e01-487e-ad8c-8e9e35c31987")
-	require.NoError(t, err)
+	workspaceID := mustUUID(t, "123e4567-e89b-12d3-a456-426614174000")
 
 	store := &mockWorkspaceStore{
 		getWorkspaceByIDFn: func(_ context.Context, id pgtype.UUID) (db.Workspace, error) {
@@ -371,7 +350,7 @@ func TestDeleteWorkspace_WorkspaceNotFound(t *testing.T) {
 	}
 
 	service := workspace.NewWorkspaceService(store)
-	err = service.DeleteWorkspace(context.Background(), workspace.DeleteWorkspaceInput{
+	err := service.DeleteWorkspace(context.Background(), workspace.DeleteWorkspaceInput{
 		ID:          workspaceID.String(),
 		RequestorID: "123e4567-e89b-12d3-a456-426614174000",
 	})
@@ -379,12 +358,8 @@ func TestDeleteWorkspace_WorkspaceNotFound(t *testing.T) {
 }
 
 func TestDeleteWorkspace_Forbidden(t *testing.T) {
-	workspaceID := pgtype.UUID{}
-	err := workspaceID.Scan("89e41058-2e01-487e-ad8c-8e9e35c31987")
-	require.NoError(t, err)
-	ownerID := pgtype.UUID{}
-	err = ownerID.Scan("123e4567-e89b-12d3-a456-426614174000")
-	require.NoError(t, err)
+	workspaceID := mustUUID(t, "89e41058-2e01-487e-ad8c-8e9e35c31987")
+	ownerID := mustUUID(t, "123e4567-e89b-12d3-a456-426614174000")
 
 	store := &mockWorkspaceStore{
 		getWorkspaceByIDFn: func(_ context.Context, id pgtype.UUID) (db.Workspace, error) {
@@ -397,7 +372,7 @@ func TestDeleteWorkspace_Forbidden(t *testing.T) {
 	}
 
 	service := workspace.NewWorkspaceService(store)
-	err = service.DeleteWorkspace(context.Background(), workspace.DeleteWorkspaceInput{
+	err := service.DeleteWorkspace(context.Background(), workspace.DeleteWorkspaceInput{
 		ID:          workspaceID.String(),
 		RequestorID: "123e4567-e89b-12d3-a456-426614174001",
 	})
@@ -405,12 +380,9 @@ func TestDeleteWorkspace_Forbidden(t *testing.T) {
 }
 
 func TestDeleteWorkspace_GetWorkspaceError(t *testing.T) {
-	workspaceID := pgtype.UUID{}
-	err := workspaceID.Scan("89e41058-2e01-487e-ad8c-8e9e35c31987")
-	require.NoError(t, err)
-	ownerID := pgtype.UUID{}
-	err = ownerID.Scan("123e4567-e89b-12d3-a456-426614174000")
-	require.NoError(t, err)
+	workspaceID := mustUUID(t, "89e41058-2e01-487e-ad8c-8e9e35c31987")
+	ownerID := mustUUID(t, "123e4567-e89b-12d3-a456-426614174000")
+
 	expectedErr := errors.New("get workspace failed")
 
 	store := &mockWorkspaceStore{
@@ -421,7 +393,7 @@ func TestDeleteWorkspace_GetWorkspaceError(t *testing.T) {
 	}
 
 	service := workspace.NewWorkspaceService(store)
-	err = service.DeleteWorkspace(context.Background(), workspace.DeleteWorkspaceInput{
+	err := service.DeleteWorkspace(context.Background(), workspace.DeleteWorkspaceInput{
 		ID:          workspaceID.String(),
 		RequestorID: ownerID.String(),
 	})
@@ -429,12 +401,9 @@ func TestDeleteWorkspace_GetWorkspaceError(t *testing.T) {
 }
 
 func TestDeleteWorkspace_DeleteError(t *testing.T) {
-	workspaceID := pgtype.UUID{}
-	err := workspaceID.Scan("89e41058-2e01-487e-ad8c-8e9e35c31987")
-	require.NoError(t, err)
-	ownerID := pgtype.UUID{}
-	err = ownerID.Scan("123e4567-e89b-12d3-a456-426614174000")
-	require.NoError(t, err)
+	workspaceID := mustUUID(t, "89e41058-2e01-487e-ad8c-8e9e35c31987")
+	ownerID := mustUUID(t, "123e4567-e89b-12d3-a456-426614174000")
+
 	expectedErr := errors.New("delete workspace failed")
 
 	store := &mockWorkspaceStore{
@@ -452,7 +421,7 @@ func TestDeleteWorkspace_DeleteError(t *testing.T) {
 	}
 
 	service := workspace.NewWorkspaceService(store)
-	err = service.DeleteWorkspace(context.Background(), workspace.DeleteWorkspaceInput{
+	err := service.DeleteWorkspace(context.Background(), workspace.DeleteWorkspaceInput{
 		ID:          workspaceID.String(),
 		RequestorID: ownerID.String(),
 	})
