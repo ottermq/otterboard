@@ -191,3 +191,167 @@ func TestListMembers_Success(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, expectedMembers, memberships)
 }
+
+func TestUpdateMemberRole_Success(t *testing.T) {
+	workspaceID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
+	userID := mustUUID(t, "22222222-2222-2222-2222-222222222222")
+
+	store := &mockMemberStore{
+		getMemberFn: func(_ context.Context, arg db.GetMemberParams) (db.WorkspaceMember, error) {
+			require.Equal(t, workspaceID, arg.WorkspaceID)
+			require.Equal(t, userID, arg.UserID)
+			return db.WorkspaceMember{
+				WorkspaceID: arg.WorkspaceID,
+				UserID:      arg.UserID,
+				Role:        "member",
+			}, nil
+		},
+		updateMemberRoleFn: func(_ context.Context, arg db.UpdateMemberRoleParams) (db.WorkspaceMember, error) {
+			require.Equal(t, workspaceID, arg.WorkspaceID)
+			require.Equal(t, userID, arg.UserID)
+			require.Equal(t, "administrator", arg.Role)
+			return db.WorkspaceMember{
+				WorkspaceID: arg.WorkspaceID,
+				UserID:      arg.UserID,
+				Role:        arg.Role,
+			}, nil
+		},
+	}
+
+	service := members.NewMemberService(store)
+	member, err := service.UpdateMemberRole(context.Background(), members.UpdateMemberRoleInput{
+		WorkspaceID: workspaceID.String(),
+		UserID:      userID.String(),
+		NewRole:     "administrator",
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, workspaceID, member.WorkspaceID)
+	require.Equal(t, userID, member.UserID)
+	require.Equal(t, "administrator", member.Role)
+}
+
+func TestUpdateMemberRole_InvalidIDs(t *testing.T) {
+	store := &mockMemberStore{
+		getMemberFn: func(_ context.Context, _ db.GetMemberParams) (db.WorkspaceMember, error) {
+			t.Fatal("GetMember should not be called with invalid IDs")
+			return db.WorkspaceMember{}, nil
+		},
+		updateMemberRoleFn: func(_ context.Context, _ db.UpdateMemberRoleParams) (db.WorkspaceMember, error) {
+			t.Fatal("UpdateMemberRole should not be called with invalid IDs")
+			return db.WorkspaceMember{}, nil
+		},
+	}
+
+	service := members.NewMemberService(store)
+	_, err := service.UpdateMemberRole(context.Background(), members.UpdateMemberRoleInput{
+		WorkspaceID: "not-a-uuid",
+		UserID:      "22222222-2222-2222-2222-222222222222",
+		NewRole:     "administrator",
+	})
+	require.ErrorIs(t, err, common.ErrInvalidWorkspaceID)
+
+	_, err = service.UpdateMemberRole(context.Background(), members.UpdateMemberRoleInput{
+		WorkspaceID: "11111111-1111-1111-1111-111111111111",
+		UserID:      "not-a-uuid",
+		NewRole:     "administrator",
+	})
+	require.ErrorIs(t, err, common.ErrInvalidUserID)
+}
+
+func TestUpdateMemberRole_MemberNotFound(t *testing.T) {
+	store := &mockMemberStore{
+		getMemberFn: func(_ context.Context, _ db.GetMemberParams) (db.WorkspaceMember, error) {
+			return db.WorkspaceMember{}, pgx.ErrNoRows
+		},
+		updateMemberRoleFn: func(_ context.Context, _ db.UpdateMemberRoleParams) (db.WorkspaceMember, error) {
+			t.Fatal("UpdateMemberRole should not be called when membership does not exist")
+			return db.WorkspaceMember{}, nil
+		},
+	}
+
+	service := members.NewMemberService(store)
+	_, err := service.UpdateMemberRole(context.Background(), members.UpdateMemberRoleInput{
+		WorkspaceID: "11111111-1111-1111-1111-111111111111",
+		UserID:      "22222222-2222-2222-2222-222222222222",
+		NewRole:     "administrator",
+	})
+
+	require.ErrorIs(t, err, members.ErrMemberNotFound)
+}
+
+func TestUpdateMemberRole_StoreError(t *testing.T) {
+	expectedErr := errors.New("store error")
+	store := &mockMemberStore{
+		getMemberFn: func(_ context.Context, _ db.GetMemberParams) (db.WorkspaceMember, error) {
+			return db.WorkspaceMember{}, nil
+		},
+		updateMemberRoleFn: func(_ context.Context, _ db.UpdateMemberRoleParams) (db.WorkspaceMember, error) {
+			return db.WorkspaceMember{}, expectedErr
+		},
+	}
+
+	service := members.NewMemberService(store)
+	_, err := service.UpdateMemberRole(context.Background(), members.UpdateMemberRoleInput{
+		WorkspaceID: "11111111-1111-1111-1111-111111111111",
+		UserID:      "22222222-2222-2222-2222-222222222222",
+		NewRole:     "administrator",
+	})
+
+	require.ErrorIs(t, err, expectedErr)
+}
+
+func TestRemoveMember_Success(t *testing.T) {
+	workspaceID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
+	userID := mustUUID(t, "22222222-2222-2222-2222-222222222222")
+
+	removeCalled := false
+	store := &mockMemberStore{
+		removeMemberFn: func(_ context.Context, arg db.RemoveMemberParams) error {
+			require.Equal(t, workspaceID, arg.WorkspaceID)
+			require.Equal(t, userID, arg.UserID)
+			removeCalled = true
+			return nil
+		},
+	}
+
+	service := members.NewMemberService(store)
+	err := service.RemoveMember(context.Background(), workspaceID.String(), userID.String())
+
+	require.NoError(t, err)
+	require.True(t, removeCalled)
+}
+
+func TestRemoveMember_InvalidIDs(t *testing.T) {
+	store := &mockMemberStore{
+		removeMemberFn: func(_ context.Context, _ db.RemoveMemberParams) error {
+			t.Fatal("RemoveMember should not be called with invalid IDs")
+			return nil
+		},
+	}
+
+	service := members.NewMemberService(store)
+	err := service.RemoveMember(context.Background(), "not-a-uuid", "22222222-2222-2222-2222-222222222222")
+	require.ErrorIs(t, err, common.ErrInvalidWorkspaceID)
+
+	err = service.RemoveMember(context.Background(), "11111111-1111-1111-1111-111111111111", "not-a-uuid")
+	require.ErrorIs(t, err, common.ErrInvalidUserID)
+}
+
+func TestRemoveMember_StoreError(t *testing.T) {
+	expectedErr := errors.New("store error")
+	store := &mockMemberStore{
+		removeMemberFn: func(_ context.Context, _ db.RemoveMemberParams) error {
+			return expectedErr
+		},
+	}
+
+	service := members.NewMemberService(store)
+	err := service.RemoveMember(
+		context.Background(),
+		"11111111-1111-1111-1111-111111111111",
+		"22222222-2222-2222-2222-222222222222",
+	)
+
+	require.ErrorIs(t, err, expectedErr)
+}

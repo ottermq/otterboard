@@ -12,7 +12,8 @@ import (
 )
 
 var (
-	ErrAlreadyMember = common.NewAppError(http.StatusConflict, "user is already a member of the workspace")
+	ErrAlreadyMember  = common.NewAppError(http.StatusConflict, "user is already a member of the workspace")
+	ErrMemberNotFound = common.NewAppError(http.StatusNotFound, "member not found")
 )
 
 type MemberStore interface {
@@ -37,6 +38,12 @@ type AddMemberInput struct {
 	WorkspaceID string
 	UserID      string
 	Role        string
+}
+
+type UpdateMemberRoleInput struct {
+	WorkspaceID string
+	UserID      string
+	NewRole     string
 }
 
 func (s *MemberService) AddMember(ctx context.Context, input AddMemberInput) (db.WorkspaceMember, error) {
@@ -75,4 +82,53 @@ func (s *MemberService) ListMembers(ctx context.Context, workspaceID string) ([]
 		return nil, common.ErrInvalidWorkspaceID
 	}
 	return s.store.ListMembers(ctx, workspaceUUID)
+}
+
+func (s *MemberService) UpdateMemberRole(ctx context.Context, input UpdateMemberRoleInput) (db.WorkspaceMember, error) {
+	var workspaceID pgtype.UUID
+	if err := workspaceID.Scan(input.WorkspaceID); err != nil {
+		return db.WorkspaceMember{}, common.ErrInvalidWorkspaceID
+	}
+	var userID pgtype.UUID
+	if err := userID.Scan(input.UserID); err != nil {
+		return db.WorkspaceMember{}, common.ErrInvalidUserID
+	}
+
+	if _, err := s.store.GetMember(ctx, db.GetMemberParams{
+		WorkspaceID: workspaceID,
+		UserID:      userID,
+	}); errors.Is(err, pgx.ErrNoRows) {
+		return db.WorkspaceMember{}, ErrMemberNotFound
+	} else if err != nil {
+		return db.WorkspaceMember{}, err
+	}
+
+	membership, err := s.store.UpdateMemberRole(ctx, db.UpdateMemberRoleParams{
+		WorkspaceID: workspaceID,
+		UserID:      userID,
+		Role:        input.NewRole,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return db.WorkspaceMember{}, ErrMemberNotFound
+	}
+	if err != nil {
+		return db.WorkspaceMember{}, err
+	}
+	return membership, nil
+}
+
+func (s *MemberService) RemoveMember(ctx context.Context, workspaceID string, userID string) error {
+	var workspaceUUID pgtype.UUID
+	if err := workspaceUUID.Scan(workspaceID); err != nil {
+		return common.ErrInvalidWorkspaceID
+	}
+	var userUUID pgtype.UUID
+	if err := userUUID.Scan(userID); err != nil {
+		return common.ErrInvalidUserID
+	}
+
+	return s.store.RemoveMember(ctx, db.RemoveMemberParams{
+		WorkspaceID: workspaceUUID,
+		UserID:      userUUID,
+	})
 }
