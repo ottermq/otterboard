@@ -1,4 +1,4 @@
-package workspace_test
+package workspaces_test
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/ottermq/otterboard/src/backend/internal/common"
 	"github.com/ottermq/otterboard/src/backend/internal/db"
-	"github.com/ottermq/otterboard/src/backend/internal/workspace"
+	"github.com/ottermq/otterboard/src/backend/internal/workspaces"
 	"github.com/stretchr/testify/require"
 )
 
@@ -61,8 +61,8 @@ func TestCreateWorkspace_Success(t *testing.T) {
 		},
 	}
 
-	service := workspace.NewWorkspaceService(store)
-	workspace, err := service.CreateWorkspace(context.Background(), workspace.CreateWorkspaceInput{
+	service := workspaces.NewWorkspaceService(store)
+	workspace, err := service.CreateWorkspace(context.Background(), workspaces.CreateWorkspaceInput{
 		Name:    "Test Workspace",
 		OwnerID: ownerID.String(),
 	})
@@ -85,7 +85,7 @@ func TestGetWorkspaceByID_Success(t *testing.T) {
 		},
 	}
 
-	service := workspace.NewWorkspaceService(store)
+	service := workspaces.NewWorkspaceService(store)
 	ws, err := service.GetWorkspaceByID(context.Background(), workspaceID.String())
 	require.NoError(t, err)
 	require.Equal(t, workspaceID.String(), ws.ID)
@@ -102,9 +102,9 @@ func TestGetWorkspaceByID_NotFound(t *testing.T) {
 		},
 	}
 
-	service := workspace.NewWorkspaceService(store)
+	service := workspaces.NewWorkspaceService(store)
 	_, err := service.GetWorkspaceByID(context.Background(), workspaceID.String())
-	require.ErrorIs(t, err, workspace.ErrWorkspaceNotFound)
+	require.ErrorIs(t, err, workspaces.ErrWorkspaceNotFound)
 }
 
 func TestCreateWorkspace_InvalidOwnerID(t *testing.T) {
@@ -117,13 +117,13 @@ func TestCreateWorkspace_InvalidOwnerID(t *testing.T) {
 		},
 	}
 
-	service := workspace.NewWorkspaceService(store)
-	_, err := service.CreateWorkspace(context.Background(), workspace.CreateWorkspaceInput{
+	service := workspaces.NewWorkspaceService(store)
+	_, err := service.CreateWorkspace(context.Background(), workspaces.CreateWorkspaceInput{
 		Name:    "Test Workspace",
 		OwnerID: "invalid-uuid",
 	})
 	require.Error(t, err)
-	require.ErrorIs(t, err, workspace.ErrInvalidOwnerID)
+	require.ErrorIs(t, err, workspaces.ErrInvalidOwnerID)
 }
 
 func TestGetWorkspacesByOwnerID_Success(t *testing.T) {
@@ -146,7 +146,7 @@ func TestGetWorkspacesByOwnerID_Success(t *testing.T) {
 		},
 	}
 
-	service := workspace.NewWorkspaceService(store)
+	service := workspaces.NewWorkspaceService(store)
 	workspaces, err := service.GetWorkspacesByOwnerID(context.Background(), ownerID.String())
 	require.NoError(t, err)
 	require.Len(t, workspaces, 2)
@@ -163,7 +163,7 @@ func TestGetWorkspacesByOwnerID_InvalidOwnerID(t *testing.T) {
 		},
 	}
 
-	service := workspace.NewWorkspaceService(store)
+	service := workspaces.NewWorkspaceService(store)
 	_, err := service.GetWorkspacesByOwnerID(context.Background(), "invalid-uuid")
 	require.Error(t, err)
 }
@@ -188,8 +188,8 @@ func TestUpdateWorkspace_Success(t *testing.T) {
 		},
 	}
 
-	service := workspace.NewWorkspaceService(store)
-	updatedWorkspace, err := service.UpdateWorkspace(context.Background(), workspace.UpdateWorkspaceInput{
+	service := workspaces.NewWorkspaceService(store)
+	updatedWorkspace, err := service.UpdateWorkspace(context.Background(), workspaces.UpdateWorkspaceInput{
 		ID:          workspaceID.String(),
 		Name:        "Updated Workspace Name",
 		RequestorID: ownerID.String(),
@@ -206,8 +206,8 @@ func TestUpdateWorkspace_InvalidWorkspaceID(t *testing.T) {
 		},
 	}
 
-	service := workspace.NewWorkspaceService(store)
-	_, err := service.UpdateWorkspace(context.Background(), workspace.UpdateWorkspaceInput{
+	service := workspaces.NewWorkspaceService(store)
+	_, err := service.UpdateWorkspace(context.Background(), workspaces.UpdateWorkspaceInput{
 		ID:          "invalid-uuid",
 		Name:        "Updated Workspace Name",
 		RequestorID: "123e4567-e89b-12d3-a456-426614174000",
@@ -228,13 +228,13 @@ func TestUpdateWorkspace_WorkspaceNotFound(t *testing.T) {
 		},
 	}
 
-	service := workspace.NewWorkspaceService(store)
-	_, err := service.UpdateWorkspace(context.Background(), workspace.UpdateWorkspaceInput{
+	service := workspaces.NewWorkspaceService(store)
+	_, err := service.UpdateWorkspace(context.Background(), workspaces.UpdateWorkspaceInput{
 		ID:          workspaceID.String(),
 		Name:        "Updated Workspace Name",
 		RequestorID: "123e4567-e89b-12d3-a456-426614174000",
 	})
-	require.ErrorIs(t, err, workspace.ErrWorkspaceNotFound)
+	require.ErrorIs(t, err, workspaces.ErrWorkspaceNotFound)
 }
 
 func TestUpdateWorkspace_Forbidden(t *testing.T) {
@@ -255,8 +255,8 @@ func TestUpdateWorkspace_Forbidden(t *testing.T) {
 		},
 	}
 
-	service := workspace.NewWorkspaceService(store)
-	_, err := service.UpdateWorkspace(context.Background(), workspace.UpdateWorkspaceInput{
+	service := workspaces.NewWorkspaceService(store)
+	_, err := service.UpdateWorkspace(context.Background(), workspaces.UpdateWorkspaceInput{
 		ID:          workspaceID.String(),
 		Name:        "Updated Workspace Name",
 		RequestorID: "123e4567-e89b-12d3-a456-426614174001", // different owner ID than existing workspace
@@ -273,8 +273,8 @@ func TestUpdateWorkspace_InvalidRequestorID(t *testing.T) {
 		},
 	}
 
-	service := workspace.NewWorkspaceService(store)
-	_, err := service.UpdateWorkspace(context.Background(), workspace.UpdateWorkspaceInput{
+	service := workspaces.NewWorkspaceService(store)
+	_, err := service.UpdateWorkspace(context.Background(), workspaces.UpdateWorkspaceInput{
 		ID:          workspaceID.String(),
 		Name:        "Updated Workspace Name",
 		RequestorID: "invalid-uuid",
@@ -304,8 +304,8 @@ func TestDeleteWorkspace_Success(t *testing.T) {
 		},
 	}
 
-	service := workspace.NewWorkspaceService(store)
-	err := service.DeleteWorkspace(context.Background(), workspace.DeleteWorkspaceInput{
+	service := workspaces.NewWorkspaceService(store)
+	err := service.DeleteWorkspace(context.Background(), workspaces.DeleteWorkspaceInput{
 		ID:          workspaceID.String(),
 		RequestorID: ownerID.String(),
 	})
@@ -316,8 +316,8 @@ func TestDeleteWorkspace_Success(t *testing.T) {
 func TestDeleteWorkspace_InvalidWorkspaceID(t *testing.T) {
 	store := &mockWorkspaceStore{}
 
-	service := workspace.NewWorkspaceService(store)
-	err := service.DeleteWorkspace(context.Background(), workspace.DeleteWorkspaceInput{
+	service := workspaces.NewWorkspaceService(store)
+	err := service.DeleteWorkspace(context.Background(), workspaces.DeleteWorkspaceInput{
 		ID:          "invalid-uuid",
 		RequestorID: "123e4567-e89b-12d3-a456-426614174000",
 	})
@@ -330,8 +330,8 @@ func TestDeleteWorkspace_InvalidRequestorID(t *testing.T) {
 
 	store := &mockWorkspaceStore{}
 
-	service := workspace.NewWorkspaceService(store)
-	err := service.DeleteWorkspace(context.Background(), workspace.DeleteWorkspaceInput{
+	service := workspaces.NewWorkspaceService(store)
+	err := service.DeleteWorkspace(context.Background(), workspaces.DeleteWorkspaceInput{
 		ID:          workspaceID.String(),
 		RequestorID: "invalid-uuid",
 	})
@@ -349,12 +349,12 @@ func TestDeleteWorkspace_WorkspaceNotFound(t *testing.T) {
 		},
 	}
 
-	service := workspace.NewWorkspaceService(store)
-	err := service.DeleteWorkspace(context.Background(), workspace.DeleteWorkspaceInput{
+	service := workspaces.NewWorkspaceService(store)
+	err := service.DeleteWorkspace(context.Background(), workspaces.DeleteWorkspaceInput{
 		ID:          workspaceID.String(),
 		RequestorID: "123e4567-e89b-12d3-a456-426614174000",
 	})
-	require.ErrorIs(t, err, workspace.ErrWorkspaceNotFound)
+	require.ErrorIs(t, err, workspaces.ErrWorkspaceNotFound)
 }
 
 func TestDeleteWorkspace_Forbidden(t *testing.T) {
@@ -371,8 +371,8 @@ func TestDeleteWorkspace_Forbidden(t *testing.T) {
 		},
 	}
 
-	service := workspace.NewWorkspaceService(store)
-	err := service.DeleteWorkspace(context.Background(), workspace.DeleteWorkspaceInput{
+	service := workspaces.NewWorkspaceService(store)
+	err := service.DeleteWorkspace(context.Background(), workspaces.DeleteWorkspaceInput{
 		ID:          workspaceID.String(),
 		RequestorID: "123e4567-e89b-12d3-a456-426614174001",
 	})
@@ -392,8 +392,8 @@ func TestDeleteWorkspace_GetWorkspaceError(t *testing.T) {
 		},
 	}
 
-	service := workspace.NewWorkspaceService(store)
-	err := service.DeleteWorkspace(context.Background(), workspace.DeleteWorkspaceInput{
+	service := workspaces.NewWorkspaceService(store)
+	err := service.DeleteWorkspace(context.Background(), workspaces.DeleteWorkspaceInput{
 		ID:          workspaceID.String(),
 		RequestorID: ownerID.String(),
 	})
@@ -420,8 +420,8 @@ func TestDeleteWorkspace_DeleteError(t *testing.T) {
 		},
 	}
 
-	service := workspace.NewWorkspaceService(store)
-	err := service.DeleteWorkspace(context.Background(), workspace.DeleteWorkspaceInput{
+	service := workspaces.NewWorkspaceService(store)
+	err := service.DeleteWorkspace(context.Background(), workspaces.DeleteWorkspaceInput{
 		ID:          workspaceID.String(),
 		RequestorID: ownerID.String(),
 	})

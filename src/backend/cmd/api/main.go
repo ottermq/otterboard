@@ -13,7 +13,7 @@ import (
 	"github.com/ottermq/otterboard/src/backend/internal/config"
 	"github.com/ottermq/otterboard/src/backend/internal/db"
 	"github.com/ottermq/otterboard/src/backend/internal/routes"
-	"github.com/ottermq/otterboard/src/backend/internal/workspace"
+	"github.com/ottermq/otterboard/src/backend/internal/workspaces"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -38,8 +38,8 @@ func main() {
 
 	api := routes.RegisterProtectedRoutes(app, auth.AuthMiddleware(sessionStore))
 
-	workspaceService := workspace.NewWorkspaceService(queries)
-	workspace.RegisterWorkspacesRoutes(api, workspace.NewHandler(workspaceService))
+	workspaceService := workspaces.NewWorkspaceService(queries)
+	workspaces.RegisterWorkspacesRoutes(api, workspaces.NewHandler(workspaceService))
 
 	log.Fatal(app.Listen(fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)))
 }
