@@ -1,0 +1,35 @@
+_id: req_aecb7a6d09ec4cb2bb0a89b65922982d
+type: Request
+parentId: fld_35785582584e4b41bbd2526a797f00fa
+modified: 1778999602899
+created: 1777970836980
+url: "{{ _.hosturl }}{{ _.basepath }}/workspaces/{% response 'body',
+  'req_36fc147a17b849078d0667810629a37b', 'b64::JFswXS5pZA==::46b', 'never', 60
+  %}"
+name: Update workspace
+description: ""
+method: PATCH
+body:
+  mimeType: application/json
+  text: |-
+    {
+    	"name" : "Otter Labs"
+    }
+parameters: []
+headers:
+  - name: Content-Type
+    value: application/json
+  - name: User-Agent
+    value: insomnium/0.2.3-a
+    id: pair_3365526881dd44c799b0c0ea8ed910b2
+    disabled: true
+authentication: {}
+metaSortKey: -1777510414454.875
+isPrivate: false
+settingStoreCookies: true
+settingSendCookies: true
+settingDisableRenderRequestBody: false
+settingEncodeUrl: true
+settingRebuildPath: true
+settingFollowRedirects: global
+segmentParams: []

@@ -1,0 +1,35 @@
+_id: req_3f2821f8e0a24187b80ec4eee15c809a
+type: Request
+parentId: fld_8c12fee34fe84316876298d43fb04923
+modified: 1779001431837
+created: 1777510357607
+url: "{{ _.hosturl }}{{ _.basepath }}/auth/register"
+name: Register
+description: ""
+method: POST
+body:
+  mimeType: application/json
+  text: |-
+    {
+    	"email":"jane@email.com",
+    	"password":"secret",
+    	"name":"Jane Doe"
+    } 
+parameters: []
+headers:
+  - name: Content-Type
+    value: application/json
+  - name: User-Agent
+    value: insomnium/0.2.3-a
+    id: pair_3365526881dd44c799b0c0ea8ed910b2
+    disabled: true
+authentication: {}
+metaSortKey: -1777510419596
+isPrivate: false
+settingStoreCookies: true
+settingSendCookies: true
+settingDisableRenderRequestBody: false
+settingEncodeUrl: true
+settingRebuildPath: true
+settingFollowRedirects: global
+segmentParams: []

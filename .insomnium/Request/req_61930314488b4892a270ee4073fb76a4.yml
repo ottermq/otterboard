@@ -1,0 +1,30 @@
+_id: req_61930314488b4892a270ee4073fb76a4
+type: Request
+parentId: wrk_bb6fab1c457f4cd08ea5cad35d8109dc
+modified: 1777510424753
+created: 1777510371136
+url: http://localhost:8088/api/v1/health
+name: Health
+description: ""
+method: GET
+body:
+  mimeType: application/json
+  text: ""
+parameters: []
+headers:
+  - name: Content-Type
+    value: application/json
+  - name: User-Agent
+    value: insomnium/0.2.3-a
+    id: pair_3365526881dd44c799b0c0ea8ed910b2
+    disabled: true
+authentication: {}
+metaSortKey: -1777510412118
+isPrivate: false
+settingStoreCookies: true
+settingSendCookies: true
+settingDisableRenderRequestBody: false
+settingEncodeUrl: true
+settingRebuildPath: true
+settingFollowRedirects: global
+segmentParams: []

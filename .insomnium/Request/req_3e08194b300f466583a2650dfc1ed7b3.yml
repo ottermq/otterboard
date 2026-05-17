@@ -1,0 +1,33 @@
+_id: req_3e08194b300f466583a2650dfc1ed7b3
+type: Request
+parentId: fld_737b2fa93c2947a8aea7e65bd8393485
+modified: 1779004245263
+created: 1778997783604
+url: "{{ _.hosturl }}{{ _.basepath }}/workspaces/{% response 'body',
+  'req_83364976ab614bb4bf1fd3cd5bc8d9b3', 'b64::JFswXS5pZA==::46b', 'never', 60
+  %}/members/{% response 'body', 'req_31113d25bfac46a6bb5545b6ae028a12',
+  'b64::JFsxXS51c2VyX2lk::46b', 'never', 60 %}"
+name: Delete
+description: ""
+method: DELETE
+body:
+  mimeType: application/json
+  text: ""
+parameters: []
+headers:
+  - name: Content-Type
+    value: application/json
+  - name: User-Agent
+    value: insomnium/0.2.3-a
+    id: pair_3365526881dd44c799b0c0ea8ed910b2
+    disabled: true
+authentication: {}
+metaSortKey: -1777510414221.1875
+isPrivate: false
+settingStoreCookies: true
+settingSendCookies: true
+settingDisableRenderRequestBody: false
+settingEncodeUrl: true
+settingRebuildPath: true
+settingFollowRedirects: global
+segmentParams: []

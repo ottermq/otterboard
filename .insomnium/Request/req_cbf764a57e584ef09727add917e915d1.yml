@@ -1,0 +1,32 @@
+_id: req_cbf764a57e584ef09727add917e915d1
+type: Request
+parentId: fld_35785582584e4b41bbd2526a797f00fa
+modified: 1778999618573
+created: 1777971163063
+url: "{{ _.hosturl }}{{ _.basepath }}/workspaces/{% response 'body',
+  'req_36fc147a17b849078d0667810629a37b', 'b64::JFswXS5pZA==::46b', 'never', 60
+  %}"
+name: Delete workspace
+description: ""
+method: DELETE
+body:
+  mimeType: application/json
+  text: ""
+parameters: []
+headers:
+  - name: Content-Type
+    value: application/json
+  - name: User-Agent
+    value: insomnium/0.2.3-a
+    id: pair_3365526881dd44c799b0c0ea8ed910b2
+    disabled: true
+authentication: {}
+metaSortKey: -1777510414221.1875
+isPrivate: false
+settingStoreCookies: true
+settingSendCookies: true
+settingDisableRenderRequestBody: false
+settingEncodeUrl: true
+settingRebuildPath: true
+settingFollowRedirects: global
+segmentParams: []

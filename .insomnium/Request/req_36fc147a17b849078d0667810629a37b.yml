@@ -1,0 +1,30 @@
+_id: req_36fc147a17b849078d0667810629a37b
+type: Request
+parentId: fld_35785582584e4b41bbd2526a797f00fa
+modified: 1778997954843
+created: 1777969217356
+url: "{{ _.hosturl }}{{ _.basepath }}/workspaces/"
+name: List workspaces
+description: ""
+method: GET
+body:
+  mimeType: application/json
+  text: ""
+parameters: []
+headers:
+  - name: Content-Type
+    value: application/json
+  - name: User-Agent
+    value: insomnium/0.2.3-a
+    id: pair_3365526881dd44c799b0c0ea8ed910b2
+    disabled: true
+authentication: {}
+metaSortKey: -1777510415857
+isPrivate: false
+settingStoreCookies: true
+settingSendCookies: true
+settingDisableRenderRequestBody: false
+settingEncodeUrl: true
+settingRebuildPath: true
+settingFollowRedirects: global
+segmentParams: []

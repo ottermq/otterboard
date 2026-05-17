@@ -1,0 +1,31 @@
+_id: req_6c00bf8ffcab4c338414b8c76f944f5d
+type: Request
+parentId: fld_3be31df21aa1465891c94ca052d34261
+modified: 1779004445704
+created: 1778997906153
+url: "{{ _.hosturl }}{{ _.basepath
+  }}/invites/FGYTBgsVERcERt48tWIp1ds0b-BhSrsbsQTt2SZzLPg="
+name: Get invite
+description: ""
+method: GET
+body:
+  mimeType: application/json
+  text: ""
+parameters: []
+headers:
+  - name: Content-Type
+    value: application/json
+  - name: User-Agent
+    value: insomnium/0.2.3-a
+    id: pair_3365526881dd44c799b0c0ea8ed910b2
+    disabled: true
+authentication: {}
+metaSortKey: -1777510414922.25
+isPrivate: false
+settingStoreCookies: true
+settingSendCookies: true
+settingDisableRenderRequestBody: false
+settingEncodeUrl: true
+settingRebuildPath: true
+settingFollowRedirects: global
+segmentParams: []

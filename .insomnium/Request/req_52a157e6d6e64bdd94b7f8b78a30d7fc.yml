@@ -1,0 +1,33 @@
+_id: req_52a157e6d6e64bdd94b7f8b78a30d7fc
+type: Request
+parentId: fld_35785582584e4b41bbd2526a797f00fa
+modified: 1778997964232
+created: 1777969217353
+url: "{{ _.hosturl }}{{ _.basepath }}/workspaces/"
+name: Create workspace
+description: ""
+method: POST
+body:
+  mimeType: application/json
+  text: |-
+    {	
+    	"name":"Otter Labs"
+    } 
+parameters: []
+headers:
+  - name: Content-Type
+    value: application/json
+  - name: User-Agent
+    value: insomnium/0.2.3-a
+    id: pair_3365526881dd44c799b0c0ea8ed910b2
+    disabled: true
+authentication: {}
+metaSortKey: -1777510419596
+isPrivate: false
+settingStoreCookies: true
+settingSendCookies: true
+settingDisableRenderRequestBody: false
+settingEncodeUrl: true
+settingRebuildPath: true
+settingFollowRedirects: global
+segmentParams: []

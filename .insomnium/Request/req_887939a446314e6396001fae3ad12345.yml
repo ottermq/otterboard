@@ -1,0 +1,32 @@
+_id: req_887939a446314e6396001fae3ad12345
+type: Request
+parentId: fld_3be31df21aa1465891c94ca052d34261
+modified: 1779002990392
+created: 1778997906148
+url: "{{ _.hosturl }}{{ _.basepath }}/workspaces/{% response 'body',
+  'req_36fc147a17b849078d0667810629a37b', 'b64::JFswXS5pZA==::46b', 'never', 60
+  %}/invites"
+name: Generate invite
+description: ""
+method: POST
+body:
+  mimeType: application/json
+  text: " "
+parameters: []
+headers:
+  - name: Content-Type
+    value: application/json
+  - name: User-Agent
+    value: insomnium/0.2.3-a
+    id: pair_3365526881dd44c799b0c0ea8ed910b2
+    disabled: true
+authentication: {}
+metaSortKey: -1777510419596
+isPrivate: false
+settingStoreCookies: true
+settingSendCookies: true
+settingDisableRenderRequestBody: false
+settingEncodeUrl: true
+settingRebuildPath: true
+settingFollowRedirects: global
+segmentParams: []

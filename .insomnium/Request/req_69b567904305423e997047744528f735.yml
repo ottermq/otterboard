@@ -1,0 +1,30 @@
+_id: req_69b567904305423e997047744528f735
+type: Request
+parentId: fld_8c12fee34fe84316876298d43fb04923
+modified: 1777583865345
+created: 1777583830169
+url: "{{ _.hosturl }}{{ _.basepath }}/auth/logout"
+name: Logout
+description: ""
+method: DELETE
+body:
+  mimeType: application/json
+  text: ""
+parameters: []
+headers:
+  - name: Content-Type
+    value: application/json
+  - name: User-Agent
+    value: insomnium/0.2.3-a
+    id: pair_3365526881dd44c799b0c0ea8ed910b2
+    disabled: true
+authentication: {}
+metaSortKey: -1777510413987.5
+isPrivate: false
+settingStoreCookies: true
+settingSendCookies: true
+settingDisableRenderRequestBody: false
+settingEncodeUrl: true
+settingRebuildPath: true
+settingFollowRedirects: global
+segmentParams: []
