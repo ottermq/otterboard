@@ -1,4 +1,4 @@
-package workspace
+package workspaces
 
 import (
 	"github.com/gofiber/fiber/v2"
@@ -17,9 +17,9 @@ func NewHandler(service *WorkspaceService) *Handler {
 }
 
 func (h *Handler) CreateWorkspace(c *fiber.Ctx) error {
-	userID, ok := currentUserID(c)
+	userID, ok := common.CurrentUserID(c)
 	if !ok {
-		return unauthorized(c)
+		return common.Unauthorized(c)
 	}
 
 	var req struct {
@@ -41,9 +41,9 @@ func (h *Handler) CreateWorkspace(c *fiber.Ctx) error {
 }
 
 func (h *Handler) GetWorkspace(c *fiber.Ctx) error {
-	userID, ok := currentUserID(c)
+	userID, ok := common.CurrentUserID(c)
 	if !ok {
-		return unauthorized(c)
+		return common.Unauthorized(c)
 	}
 
 	workspace, err := h.service.GetWorkspaceByID(c.Context(), c.Params("id"))
@@ -51,16 +51,16 @@ func (h *Handler) GetWorkspace(c *fiber.Ctx) error {
 		return common.HandlerError(c, err)
 	}
 	if workspace.OwnerID != userID {
-		return common.HandlerError(c, ErrForbidden)
+		return common.HandlerError(c, common.ErrForbidden)
 	}
 
 	return c.JSON(mapToWorkspaceDto(workspace))
 }
 
 func (h *Handler) ListWorkspaces(c *fiber.Ctx) error {
-	userID, ok := currentUserID(c)
+	userID, ok := common.CurrentUserID(c)
 	if !ok {
-		return unauthorized(c)
+		return common.Unauthorized(c)
 	}
 
 	workspaces, err := h.service.GetWorkspacesByOwnerID(c.Context(), userID)
@@ -76,9 +76,9 @@ func (h *Handler) ListWorkspaces(c *fiber.Ctx) error {
 }
 
 func (h *Handler) UpdateWorkspace(c *fiber.Ctx) error {
-	userID, ok := currentUserID(c)
+	userID, ok := common.CurrentUserID(c)
 	if !ok {
-		return unauthorized(c)
+		return common.Unauthorized(c)
 	}
 
 	var req struct {
@@ -101,9 +101,9 @@ func (h *Handler) UpdateWorkspace(c *fiber.Ctx) error {
 }
 
 func (h *Handler) DeleteWorkspace(c *fiber.Ctx) error {
-	userID, ok := currentUserID(c)
+	userID, ok := common.CurrentUserID(c)
 	if !ok {
-		return unauthorized(c)
+		return common.Unauthorized(c)
 	}
 
 	err := h.service.DeleteWorkspace(c.Context(), DeleteWorkspaceInput{
@@ -125,13 +125,4 @@ func mapToWorkspaceDto(workspace Workspace) dtos.WorkspaceDto {
 		CreatedAt: workspace.CreatedAt,
 		UpdatedAt: workspace.UpdatedAt,
 	}
-}
-
-func currentUserID(c *fiber.Ctx) (string, bool) {
-	userID, ok := c.Locals("userID").(string)
-	return userID, ok && userID != ""
-}
-
-func unauthorized(c *fiber.Ctx) error {
-	return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "unauthorized"})
 }

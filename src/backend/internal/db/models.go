@@ -8,6 +8,16 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Invite struct {
+	ID          pgtype.UUID
+	WorkspaceID pgtype.UUID
+	CreatedBy   pgtype.UUID
+	Token       string
+	CreatedAt   pgtype.Timestamptz
+	ExpiresAt   pgtype.Timestamptz
+	UsedAt      pgtype.Timestamptz
+}
+
 type User struct {
 	ID           pgtype.UUID
 	Email        string
@@ -23,4 +33,11 @@ type Workspace struct {
 	OwnerID   pgtype.UUID
 	CreatedAt pgtype.Timestamptz
 	UpdatedAt pgtype.Timestamptz
+}
+
+type WorkspaceMember struct {
+	WorkspaceID pgtype.UUID
+	UserID      pgtype.UUID
+	Role        string
+	JoinedAt    pgtype.Timestamptz
 }

@@ -36,6 +36,7 @@ Unique constraint on `(provider, provider_user_id)`.
 |--------|------|-------|
 | id | UUID | PK |
 | name | VARCHAR | not null |
+| owner_id | UUID | FK → users.id, not null |
 | icon_url | VARCHAR | nullable |
 | created_at | TIMESTAMP | not null |
 | updated_at | TIMESTAMP | not null |
@@ -121,6 +122,22 @@ Workspace-scoped static tokens for agents and integrations. The raw key is shown
 | url | VARCHAR | delivery endpoint, not null |
 | events | VARCHAR[] | subscribed event types, e.g. `issue.created`, `issue.assigned` |
 | created_at | TIMESTAMP | not null |
+
+---
+
+## invites
+
+Shareable invite links for joining a workspace. A link is single-use — `used_at` is set on acceptance.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | UUID | PK |
+| workspace_id | UUID | FK → workspaces.id, ON DELETE CASCADE |
+| created_by | UUID | FK → users.id, nullable — SET NULL if creator is deleted |
+| token | TEXT | unique random token; included in the invite URL |
+| created_at | TIMESTAMPTZ | not null |
+| expires_at | TIMESTAMPTZ | not null |
+| used_at | TIMESTAMPTZ | nullable — null means not yet accepted |
 
 ---
 
