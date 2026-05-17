@@ -47,8 +47,9 @@ func main() {
 	members.RegisterMemberRoutes(api, members.NewHandler(membersService))
 
 	inviteService := invites.NewInviteService(queries)
-	invites.RegisterInviteRoutes(unprotected, invites.NewHandler(inviteService))
-	invites.RegisterProtectedInviteRoutes(api, invites.NewHandler(inviteService))
+	invitesHandler := invites.NewHandler(inviteService)
+	invites.RegisterInviteRoutes(unprotected, invitesHandler)
+	invites.RegisterProtectedInviteRoutes(api, invitesHandler)
 
 	log.Fatal(app.Listen(fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)))
 }

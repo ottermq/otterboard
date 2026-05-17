@@ -8,6 +8,5 @@ func RegisterInviteRoutes(api fiber.Router, h *Handler) {
 
 func RegisterProtectedInviteRoutes(api fiber.Router, h *Handler) {
 	api.Post("/workspaces/:workspaceId/invites", h.GenerateInvite)
-	g := api.Group("/invites")
-	g.Post("/accept", h.AcceptInvite)
+	api.Post("/invites/:token/accept", h.AcceptInvite)
 }
