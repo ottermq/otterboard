@@ -189,7 +189,18 @@ func TestListMembers_Success(t *testing.T) {
 	memberships, err := service.ListMembers(context.Background(), "11111111-1111-1111-1111-111111111111")
 
 	require.NoError(t, err)
-	require.Equal(t, expectedMembers, memberships)
+	require.Equal(t, []members.Member{
+		{
+			WorkspaceID: "11111111-1111-1111-1111-111111111111",
+			UserID:      "22222222-2222-2222-2222-222222222222",
+			Role:        "administrator",
+		},
+		{
+			WorkspaceID: "11111111-1111-1111-1111-111111111111",
+			UserID:      "33333333-3333-3333-3333-333333333333",
+			Role:        "member",
+		},
+	}, memberships)
 }
 
 func TestUpdateMemberRole_Success(t *testing.T) {
@@ -226,8 +237,8 @@ func TestUpdateMemberRole_Success(t *testing.T) {
 	})
 
 	require.NoError(t, err)
-	require.Equal(t, workspaceID, member.WorkspaceID)
-	require.Equal(t, userID, member.UserID)
+	require.Equal(t, workspaceID.String(), member.WorkspaceID)
+	require.Equal(t, userID.String(), member.UserID)
 	require.Equal(t, "administrator", member.Role)
 }
 

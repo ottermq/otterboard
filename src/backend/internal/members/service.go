@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -46,6 +47,13 @@ type UpdateMemberRoleInput struct {
 	NewRole     string
 }
 
+type Member struct {
+	WorkspaceID string
+	UserID      string
+	Role        string
+	JoinedAt    time.Time
+}
+
 func (s *MemberService) AddMember(ctx context.Context, input AddMemberInput) (db.WorkspaceMember, error) {
 	var workspaceID pgtype.UUID
 	if err := workspaceID.Scan(input.WorkspaceID); err != nil {
@@ -76,31 +84,39 @@ func (s *MemberService) AddMember(ctx context.Context, input AddMemberInput) (db
 	return membership, nil
 }
 
-func (s *MemberService) ListMembers(ctx context.Context, workspaceID string) ([]db.WorkspaceMember, error) {
+func (s *MemberService) ListMembers(ctx context.Context, workspaceID string) ([]Member, error) {
 	var workspaceUUID pgtype.UUID
 	if err := workspaceUUID.Scan(workspaceID); err != nil {
 		return nil, common.ErrInvalidWorkspaceID
 	}
-	return s.store.ListMembers(ctx, workspaceUUID)
+	memberships, err := s.store.ListMembers(ctx, workspaceUUID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]Member, len(memberships))
+	for i, membership := range memberships {
+		result[i] = mapDbWorkspaceToDomain(membership)
+	}
+	return result, nil
 }
 
-func (s *MemberService) UpdateMemberRole(ctx context.Context, input UpdateMemberRoleInput) (db.WorkspaceMember, error) {
+func (s *MemberService) UpdateMemberRole(ctx context.Context, input UpdateMemberRoleInput) (Member, error) {
 	var workspaceID pgtype.UUID
 	if err := workspaceID.Scan(input.WorkspaceID); err != nil {
-		return db.WorkspaceMember{}, common.ErrInvalidWorkspaceID
+		return Member{}, common.ErrInvalidWorkspaceID
 	}
 	var userID pgtype.UUID
 	if err := userID.Scan(input.UserID); err != nil {
-		return db.WorkspaceMember{}, common.ErrInvalidUserID
+		return Member{}, common.ErrInvalidUserID
 	}
 
 	if _, err := s.store.GetMember(ctx, db.GetMemberParams{
 		WorkspaceID: workspaceID,
 		UserID:      userID,
 	}); errors.Is(err, pgx.ErrNoRows) {
-		return db.WorkspaceMember{}, ErrMemberNotFound
+		return Member{}, ErrMemberNotFound
 	} else if err != nil {
-		return db.WorkspaceMember{}, err
+		return Member{}, err
 	}
 
 	membership, err := s.store.UpdateMemberRole(ctx, db.UpdateMemberRoleParams{
@@ -109,12 +125,12 @@ func (s *MemberService) UpdateMemberRole(ctx context.Context, input UpdateMember
 		Role:        input.NewRole,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		return db.WorkspaceMember{}, ErrMemberNotFound
+		return Member{}, ErrMemberNotFound
 	}
 	if err != nil {
-		return db.WorkspaceMember{}, err
+		return Member{}, err
 	}
-	return membership, nil
+	return mapDbWorkspaceToDomain(membership), nil
 }
 
 func (s *MemberService) RemoveMember(ctx context.Context, workspaceID string, userID string) error {
@@ -131,4 +147,13 @@ func (s *MemberService) RemoveMember(ctx context.Context, workspaceID string, us
 		WorkspaceID: workspaceUUID,
 		UserID:      userUUID,
 	})
+}
+
+func mapDbWorkspaceToDomain(membership db.WorkspaceMember) Member {
+	return Member{
+		WorkspaceID: membership.WorkspaceID.String(),
+		UserID:      membership.UserID.String(),
+		Role:        membership.Role,
+		JoinedAt:    membership.JoinedAt.Time,
+	}
 }
