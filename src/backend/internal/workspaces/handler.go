@@ -46,14 +46,13 @@ func (h *Handler) GetWorkspace(c *fiber.Ctx) error {
 		return common.Unauthorized(c)
 	}
 
-	workspace, err := h.service.GetWorkspaceByID(c.Context(), c.Params("id"))
+	workspace, err := h.service.GetWorkspaceByID(c.Context(), GetWorkspaceByIdInput{
+		ID:       c.Params("id"),
+		MemberID: userID,
+	})
 	if err != nil {
 		return common.HandlerError(c, err)
 	}
-	if workspace.OwnerID != userID {
-		return common.HandlerError(c, common.ErrForbidden)
-	}
-
 	return c.JSON(mapToWorkspaceDto(workspace))
 }
 
@@ -63,7 +62,7 @@ func (h *Handler) ListWorkspaces(c *fiber.Ctx) error {
 		return common.Unauthorized(c)
 	}
 
-	workspaces, err := h.service.GetWorkspacesByOwnerID(c.Context(), userID)
+	workspaces, err := h.service.GetWorkspacesByMemberID(c.Context(), userID)
 	if err != nil {
 		return common.HandlerError(c, err)
 	}

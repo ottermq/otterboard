@@ -63,14 +63,14 @@ func (q *Queries) GetWorkspaceByID(ctx context.Context, id pgtype.UUID) (Workspa
 	return i, err
 }
 
-const getWorkspaceByMemberID = `-- name: GetWorkspaceByMemberID :many
+const getWorkspacesByMemberID = `-- name: GetWorkspacesByMemberID :many
 SELECT w.id, w.name, w.owner_id, w.created_at, w.updated_at FROM workspaces w
 JOIN workspace_members wm ON w.id = wm.workspace_id
 WHERE wm.user_id = $1
 `
 
-func (q *Queries) GetWorkspaceByMemberID(ctx context.Context, userID pgtype.UUID) ([]Workspace, error) {
-	rows, err := q.db.Query(ctx, getWorkspaceByMemberID, userID)
+func (q *Queries) GetWorkspacesByMemberID(ctx context.Context, userID pgtype.UUID) ([]Workspace, error) {
+	rows, err := q.db.Query(ctx, getWorkspacesByMemberID, userID)
 	if err != nil {
 		return nil, err
 	}

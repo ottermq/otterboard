@@ -21,7 +21,7 @@ RETURNING *;
 DELETE FROM workspaces
 WHERE id = $1;
 
--- name: GetWorkspaceByMemberID :many
+-- name: GetWorkspacesByMemberID :many
 SELECT w.* FROM workspaces w
 JOIN workspace_members wm ON w.id = wm.workspace_id
 WHERE wm.user_id = $1;
