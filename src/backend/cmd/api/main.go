@@ -12,6 +12,8 @@ import (
 	"github.com/ottermq/otterboard/src/backend/internal/auth"
 	"github.com/ottermq/otterboard/src/backend/internal/config"
 	"github.com/ottermq/otterboard/src/backend/internal/db"
+	"github.com/ottermq/otterboard/src/backend/internal/invites"
+	"github.com/ottermq/otterboard/src/backend/internal/members"
 	"github.com/ottermq/otterboard/src/backend/internal/routes"
 	"github.com/ottermq/otterboard/src/backend/internal/workspaces"
 	"github.com/redis/go-redis/v9"
@@ -29,7 +31,7 @@ func main() {
 
 	app := InitializeFiber(cfg)
 
-	routes.RegisterRoutes(app)
+	unprotected := routes.RegisterRoutes(app)
 
 	authService := auth.NewAuthService(queries)
 	redisClient := initializeRedis(cfg)
@@ -40,6 +42,13 @@ func main() {
 
 	workspaceService := workspaces.NewWorkspaceService(queries)
 	workspaces.RegisterWorkspacesRoutes(api, workspaces.NewHandler(workspaceService))
+
+	membersService := members.NewMemberService(queries)
+	members.RegisterMemberRoutes(api, members.NewHandler(membersService))
+
+	inviteService := invites.NewInviteService(queries)
+	invites.RegisterInviteRoutes(unprotected, invites.NewHandler(inviteService))
+	invites.RegisterProtectedInviteRoutes(api, invites.NewHandler(inviteService))
 
 	log.Fatal(app.Listen(fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)))
 }
