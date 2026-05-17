@@ -49,12 +49,10 @@ func NewInviteService(store InviteStore) *InviteService {
 }
 
 func (s *InviteService) GenerateInvite(ctx context.Context, input GenerateInviteInput) (db.Invite, error) {
-	// Validate Workspace ID
 	var workspaceID pgtype.UUID
 	if err := workspaceID.Scan(input.WorkspaceID); err != nil {
 		return db.Invite{}, common.ErrInvalidWorkspaceID
 	}
-	// Validate CreatedBy ID
 	var createdBy pgtype.UUID
 	if err := createdBy.Scan(input.CreatedBy); err != nil {
 		return db.Invite{}, common.ErrInvalidUserID
@@ -63,7 +61,6 @@ func (s *InviteService) GenerateInvite(ctx context.Context, input GenerateInvite
 	if err != nil {
 		return db.Invite{}, err
 	}
-	// Set ExpiresAt to N days from now (reminder: set 7 days from configuration) as pgtype.Timestamptz
 	expiresAt := pgtype.Timestamptz{
 		Time:  time.Now().Add(input.ExpiresIn),
 		Valid: true,
