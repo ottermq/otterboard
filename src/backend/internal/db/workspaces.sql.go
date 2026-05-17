@@ -63,6 +63,38 @@ func (q *Queries) GetWorkspaceByID(ctx context.Context, id pgtype.UUID) (Workspa
 	return i, err
 }
 
+const getWorkspaceByMemberID = `-- name: GetWorkspaceByMemberID :many
+SELECT w.id, w.name, w.owner_id, w.created_at, w.updated_at FROM workspaces w
+JOIN workspace_members wm ON w.id = wm.workspace_id
+WHERE wm.user_id = $1
+`
+
+func (q *Queries) GetWorkspaceByMemberID(ctx context.Context, userID pgtype.UUID) ([]Workspace, error) {
+	rows, err := q.db.Query(ctx, getWorkspaceByMemberID, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Workspace
+	for rows.Next() {
+		var i Workspace
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.OwnerID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getWorkspacesByOwnerID = `-- name: GetWorkspacesByOwnerID :many
 SELECT id, name, owner_id, created_at, updated_at FROM workspaces
 WHERE owner_id = $1
