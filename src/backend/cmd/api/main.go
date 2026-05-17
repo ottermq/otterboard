@@ -21,10 +21,10 @@ func main() {
 	cfg := config.LoadConfig()
 
 	conn, err := pgx.Connect(context.Background(), cfg.DatabaseURL)
-	defer conn.Close(context.Background())
 	if err != nil {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
+	defer conn.Close(context.Background())
 	queries := db.New(conn)
 
 	app := InitializeFiber(cfg)
