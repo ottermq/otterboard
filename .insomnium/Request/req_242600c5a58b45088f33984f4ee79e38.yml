@@ -1,12 +1,12 @@
 _id: req_242600c5a58b45088f33984f4ee79e38
 type: Request
 parentId: fld_737b2fa93c2947a8aea7e65bd8393485
-modified: 1779004065090
+modified: 1779055674248
 created: 1778997783603
 url: "{{ _.hosturl }}{{ _.basepath }}/workspaces/{% response 'body',
   'req_83364976ab614bb4bf1fd3cd5bc8d9b3', 'b64::JFswXS5pZA==::46b', 'never', 60
   %}/members/{% response 'body', 'req_31113d25bfac46a6bb5545b6ae028a12',
-  'b64::JFsxXS51c2VyX2lk::46b', 'never', 60 %}"
+  'b64::JFswXS51c2VyX2lk::46b', 'never', 60 %}"
 name: Update
 description: ""
 method: PATCH
@@ -14,7 +14,7 @@ body:
   mimeType: application/json
   text: |-
     {
-    	"role":"member"
+    	"role":"administrator"
     }
 parameters: []
 headers:

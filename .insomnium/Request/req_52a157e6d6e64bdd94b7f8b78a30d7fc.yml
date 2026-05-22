@@ -1,7 +1,7 @@
 _id: req_52a157e6d6e64bdd94b7f8b78a30d7fc
 type: Request
 parentId: fld_35785582584e4b41bbd2526a797f00fa
-modified: 1778997964232
+modified: 1779056065204
 created: 1777969217353
 url: "{{ _.hosturl }}{{ _.basepath }}/workspaces/"
 name: Create workspace
@@ -11,7 +11,7 @@ body:
   mimeType: application/json
   text: |-
     {	
-    	"name":"Otter Labs"
+    	"name":"Jane's workspace"
     } 
 parameters: []
 headers:
