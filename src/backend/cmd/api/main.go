@@ -9,6 +9,7 @@ import (
 	"github.com/avast/retry-go/v4"
 	"github.com/gofiber/fiber/v2"
 	"github.com/jackc/pgx/v5"
+	"github.com/ottermq/otterboard/src/backend/internal/api_keys"
 	"github.com/ottermq/otterboard/src/backend/internal/auth"
 	"github.com/ottermq/otterboard/src/backend/internal/config"
 	"github.com/ottermq/otterboard/src/backend/internal/db"
@@ -50,6 +51,10 @@ func main() {
 	invitesHandler := invites.NewHandler(inviteService)
 	invites.RegisterInviteRoutes(unprotected, invitesHandler)
 	invites.RegisterProtectedInviteRoutes(api, invitesHandler)
+
+	apiKeyService := api_keys.NewApiKeyService(queries)
+	apiKeyHandler := api_keys.NewHandler(apiKeyService)
+	api_keys.RegisterApiKeyRoutes(api, apiKeyHandler)
 
 	log.Fatal(app.Listen(fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)))
 }
