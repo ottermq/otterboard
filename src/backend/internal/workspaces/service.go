@@ -77,9 +77,6 @@ func (w *WorkspaceService) CreateWorkspace(ctx context.Context, input CreateWork
 		Name:    input.Name,
 		OwnerID: ownerID,
 	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return Workspace{}, ErrWorkspaceNotFound
-	}
 	if err != nil {
 		return Workspace{}, err
 	}
