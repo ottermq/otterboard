@@ -14,11 +14,13 @@ import (
 )
 
 type mockWorkspaceStore struct {
-	createWorkspaceFn        func(ctx context.Context, arg db.CreateWorkspaceParams) (db.Workspace, error)
-	getWorkspaceByIDFn       func(ctx context.Context, id pgtype.UUID) (db.Workspace, error)
-	getWorkspacesByOwnerIDFn func(ctx context.Context, ownerID pgtype.UUID) ([]db.Workspace, error)
-	updateWorkspaceFn        func(ctx context.Context, arg db.UpdateWorkspaceParams) (db.Workspace, error)
-	deleteWorkspaceFn        func(ctx context.Context, id pgtype.UUID) error
+	createWorkspaceFn         func(ctx context.Context, arg db.CreateWorkspaceParams) (db.Workspace, error)
+	getWorkspaceByIDFn        func(ctx context.Context, id pgtype.UUID) (db.Workspace, error)
+	getWorkspacesByMemberIDFn func(ctx context.Context, memberID pgtype.UUID) ([]db.Workspace, error)
+	updateWorkspaceFn         func(ctx context.Context, arg db.UpdateWorkspaceParams) (db.Workspace, error)
+	deleteWorkspaceFn         func(ctx context.Context, id pgtype.UUID) error
+	addMemberFn               func(ctx context.Context, arg db.AddMemberParams) (db.WorkspaceMember, error)
+	getMemberFn               func(ctx context.Context, arg db.GetMemberParams) (db.WorkspaceMember, error)
 }
 
 func (m *mockWorkspaceStore) CreateWorkspace(ctx context.Context, arg db.CreateWorkspaceParams) (db.Workspace, error) {
@@ -29,8 +31,8 @@ func (m *mockWorkspaceStore) GetWorkspaceByID(ctx context.Context, id pgtype.UUI
 	return m.getWorkspaceByIDFn(ctx, id)
 }
 
-func (m *mockWorkspaceStore) GetWorkspacesByOwnerID(ctx context.Context, ownerID pgtype.UUID) ([]db.Workspace, error) {
-	return m.getWorkspacesByOwnerIDFn(ctx, ownerID)
+func (m *mockWorkspaceStore) GetWorkspacesByMemberID(ctx context.Context, memberID pgtype.UUID) ([]db.Workspace, error) {
+	return m.getWorkspacesByMemberIDFn(ctx, memberID)
 }
 
 func (m *mockWorkspaceStore) UpdateWorkspace(ctx context.Context, arg db.UpdateWorkspaceParams) (db.Workspace, error) {
@@ -39,6 +41,14 @@ func (m *mockWorkspaceStore) UpdateWorkspace(ctx context.Context, arg db.UpdateW
 
 func (m *mockWorkspaceStore) DeleteWorkspace(ctx context.Context, id pgtype.UUID) error {
 	return m.deleteWorkspaceFn(ctx, id)
+}
+
+func (m *mockWorkspaceStore) AddMember(ctx context.Context, arg db.AddMemberParams) (db.WorkspaceMember, error) {
+	return m.addMemberFn(ctx, arg)
+}
+
+func (m *mockWorkspaceStore) GetMember(ctx context.Context, arg db.GetMemberParams) (db.WorkspaceMember, error) {
+	return m.getMemberFn(ctx, arg)
 }
 
 func mustUUID(t *testing.T, id string) pgtype.UUID {
@@ -51,13 +61,21 @@ func mustUUID(t *testing.T, id string) pgtype.UUID {
 
 func TestCreateWorkspace_Success(t *testing.T) {
 	ownerID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
+	workspaceID := mustUUID(t, "22222222-2222-2222-2222-222222222222")
 
 	store := &mockWorkspaceStore{
 		createWorkspaceFn: func(_ context.Context, arg db.CreateWorkspaceParams) (db.Workspace, error) {
 			return db.Workspace{
+				ID:      workspaceID,
 				Name:    arg.Name,
 				OwnerID: arg.OwnerID,
 			}, nil
+		},
+		addMemberFn: func(_ context.Context, arg db.AddMemberParams) (db.WorkspaceMember, error) {
+			require.Equal(t, workspaceID, arg.WorkspaceID)
+			require.Equal(t, ownerID, arg.UserID)
+			require.Equal(t, "administrator", arg.Role)
+			return db.WorkspaceMember{}, nil
 		},
 	}
 
@@ -83,10 +101,18 @@ func TestGetWorkspaceByID_Success(t *testing.T) {
 				OwnerID: ownerID,
 			}, nil
 		},
+		getMemberFn: func(_ context.Context, arg db.GetMemberParams) (db.WorkspaceMember, error) {
+			require.Equal(t, workspaceID, arg.WorkspaceID)
+			require.Equal(t, ownerID, arg.UserID)
+			return db.WorkspaceMember{}, nil
+		},
 	}
 
 	service := workspaces.NewWorkspaceService(store)
-	ws, err := service.GetWorkspaceByID(context.Background(), workspaceID.String())
+	ws, err := service.GetWorkspaceByID(context.Background(), workspaces.GetWorkspaceByIdInput{
+		ID:       workspaceID.String(),
+		MemberID: ownerID.String(),
+	})
 	require.NoError(t, err)
 	require.Equal(t, workspaceID.String(), ws.ID)
 	require.Equal(t, "Test Workspace", ws.Name)
@@ -103,8 +129,51 @@ func TestGetWorkspaceByID_NotFound(t *testing.T) {
 	}
 
 	service := workspaces.NewWorkspaceService(store)
-	_, err := service.GetWorkspaceByID(context.Background(), workspaceID.String())
+	_, err := service.GetWorkspaceByID(context.Background(), workspaces.GetWorkspaceByIdInput{
+		ID:       workspaceID.String(),
+		MemberID: "22222222-2222-2222-2222-222222222222",
+	})
 	require.ErrorIs(t, err, workspaces.ErrWorkspaceNotFound)
+}
+
+func TestGetWorkspaceByID_InvalidMemberID(t *testing.T) {
+	service := workspaces.NewWorkspaceService(&mockWorkspaceStore{})
+
+	_, err := service.GetWorkspaceByID(context.Background(), workspaces.GetWorkspaceByIdInput{
+		ID:       "11111111-1111-1111-1111-111111111111",
+		MemberID: "invalid-uuid",
+	})
+
+	require.ErrorIs(t, err, workspaces.ErrInvalidMemberID)
+}
+
+func TestGetWorkspaceByID_NotWorkspaceMember(t *testing.T) {
+	workspaceID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
+	memberID := mustUUID(t, "22222222-2222-2222-2222-222222222222")
+
+	store := &mockWorkspaceStore{
+		getWorkspaceByIDFn: func(_ context.Context, id pgtype.UUID) (db.Workspace, error) {
+			require.Equal(t, workspaceID, id)
+			return db.Workspace{
+				ID:      id,
+				Name:    "Test Workspace",
+				OwnerID: mustUUID(t, "33333333-3333-3333-3333-333333333333"),
+			}, nil
+		},
+		getMemberFn: func(_ context.Context, arg db.GetMemberParams) (db.WorkspaceMember, error) {
+			require.Equal(t, workspaceID, arg.WorkspaceID)
+			require.Equal(t, memberID, arg.UserID)
+			return db.WorkspaceMember{}, pgx.ErrNoRows
+		},
+	}
+
+	service := workspaces.NewWorkspaceService(store)
+	_, err := service.GetWorkspaceByID(context.Background(), workspaces.GetWorkspaceByIdInput{
+		ID:       workspaceID.String(),
+		MemberID: memberID.String(),
+	})
+
+	require.ErrorIs(t, err, workspaces.ErrNotWorkspaceMember)
 }
 
 func TestCreateWorkspace_InvalidOwnerID(t *testing.T) {
@@ -126,46 +195,83 @@ func TestCreateWorkspace_InvalidOwnerID(t *testing.T) {
 	require.ErrorIs(t, err, workspaces.ErrInvalidOwnerID)
 }
 
-func TestGetWorkspacesByOwnerID_Success(t *testing.T) {
-	ownerID := mustUUID(t, "123e4567-e89b-12d3-a456-426614174000")
+func TestCreateWorkspace_AddMemberError(t *testing.T) {
+	ownerID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
+	expectedErr := errors.New("add member failed")
 
 	store := &mockWorkspaceStore{
-		getWorkspacesByOwnerIDFn: func(_ context.Context, id pgtype.UUID) ([]db.Workspace, error) {
+		createWorkspaceFn: func(_ context.Context, arg db.CreateWorkspaceParams) (db.Workspace, error) {
+			return db.Workspace{
+				ID:      mustUUID(t, "22222222-2222-2222-2222-222222222222"),
+				Name:    arg.Name,
+				OwnerID: arg.OwnerID,
+			}, nil
+		},
+		addMemberFn: func(_ context.Context, _ db.AddMemberParams) (db.WorkspaceMember, error) {
+			return db.WorkspaceMember{}, expectedErr
+		},
+	}
+
+	service := workspaces.NewWorkspaceService(store)
+	_, err := service.CreateWorkspace(context.Background(), workspaces.CreateWorkspaceInput{
+		Name:    "Test Workspace",
+		OwnerID: ownerID.String(),
+	})
+
+	require.ErrorIs(t, err, expectedErr)
+}
+
+func TestGetWorkspacesByMemberID_Success(t *testing.T) {
+	memberID := mustUUID(t, "123e4567-e89b-12d3-a456-426614174000")
+
+	store := &mockWorkspaceStore{
+		getWorkspacesByMemberIDFn: func(_ context.Context, id pgtype.UUID) ([]db.Workspace, error) {
+			require.Equal(t, memberID, id)
 			return []db.Workspace{
 				{
 					ID:      mustUUID(t, "89e41058-2e01-487e-ad8c-8e9e35c31987"),
 					Name:    "Workspace 1",
-					OwnerID: id,
+					OwnerID: mustUUID(t, "11111111-1111-1111-1111-111111111111"),
 				},
 				{
 					ID:      mustUUID(t, "98e41058-2e01-487e-ad8c-8e9e35c31988"),
 					Name:    "Workspace 2",
-					OwnerID: id,
+					OwnerID: mustUUID(t, "22222222-2222-2222-2222-222222222222"),
 				},
 			}, nil
 		},
 	}
 
 	service := workspaces.NewWorkspaceService(store)
-	workspaces, err := service.GetWorkspacesByOwnerID(context.Background(), ownerID.String())
+	result, err := service.GetWorkspacesByMemberID(context.Background(), memberID.String())
+
 	require.NoError(t, err)
-	require.Len(t, workspaces, 2)
-	require.Equal(t, "Workspace 1", workspaces[0].Name)
-	require.Equal(t, "Workspace 2", workspaces[1].Name)
-	require.Equal(t, ownerID.String(), workspaces[0].OwnerID)
-	require.Equal(t, ownerID.String(), workspaces[1].OwnerID)
+	require.Len(t, result, 2)
+	require.Equal(t, "Workspace 1", result[0].Name)
+	require.Equal(t, "Workspace 2", result[1].Name)
 }
 
-func TestGetWorkspacesByOwnerID_InvalidOwnerID(t *testing.T) {
+func TestGetWorkspacesByMemberID_InvalidMemberID(t *testing.T) {
+	service := workspaces.NewWorkspaceService(&mockWorkspaceStore{})
+
+	_, err := service.GetWorkspacesByMemberID(context.Background(), "invalid-uuid")
+
+	require.ErrorIs(t, err, workspaces.ErrInvalidMemberID)
+}
+
+func TestGetWorkspacesByMemberID_StoreError(t *testing.T) {
+	expectedErr := errors.New("list member workspaces failed")
+
 	store := &mockWorkspaceStore{
-		getWorkspacesByOwnerIDFn: func(_ context.Context, id pgtype.UUID) ([]db.Workspace, error) {
-			return []db.Workspace{}, nil
+		getWorkspacesByMemberIDFn: func(_ context.Context, _ pgtype.UUID) ([]db.Workspace, error) {
+			return nil, expectedErr
 		},
 	}
 
 	service := workspaces.NewWorkspaceService(store)
-	_, err := service.GetWorkspacesByOwnerID(context.Background(), "invalid-uuid")
-	require.Error(t, err)
+	_, err := service.GetWorkspacesByMemberID(context.Background(), "123e4567-e89b-12d3-a456-426614174000")
+
+	require.ErrorIs(t, err, expectedErr)
 }
 
 func TestUpdateWorkspace_Success(t *testing.T) {

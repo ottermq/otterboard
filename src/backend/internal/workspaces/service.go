@@ -13,21 +13,30 @@ import (
 )
 
 var (
-	ErrWorkspaceNotFound = common.NewAppError(http.StatusNotFound, "workspace not found")
-	ErrInvalidOwnerID    = common.NewAppError(http.StatusBadRequest, "invalid owner ID")
+	ErrWorkspaceNotFound  = common.NewAppError(http.StatusNotFound, "workspace not found")
+	ErrInvalidOwnerID     = common.NewAppError(http.StatusBadRequest, "invalid owner ID")
+	ErrInvalidMemberID    = common.NewAppError(http.StatusBadRequest, "invalid member ID")
+	ErrNotWorkspaceMember = common.NewAppError(http.StatusForbidden, "user is not a member of the workspace")
 )
 
 type WorkspaceStore interface {
 	CreateWorkspace(ctx context.Context, arg db.CreateWorkspaceParams) (db.Workspace, error)
 	GetWorkspaceByID(ctx context.Context, id pgtype.UUID) (db.Workspace, error)
-	GetWorkspacesByOwnerID(ctx context.Context, ownerID pgtype.UUID) ([]db.Workspace, error)
+	GetWorkspacesByMemberID(ctx context.Context, memberID pgtype.UUID) ([]db.Workspace, error)
 	UpdateWorkspace(ctx context.Context, arg db.UpdateWorkspaceParams) (db.Workspace, error)
 	DeleteWorkspace(ctx context.Context, id pgtype.UUID) error
+	AddMember(ctx context.Context, arg db.AddMemberParams) (db.WorkspaceMember, error)
+	GetMember(ctx context.Context, arg db.GetMemberParams) (db.WorkspaceMember, error)
 }
 
 type CreateWorkspaceInput struct {
 	Name    string
 	OwnerID string
+}
+
+type GetWorkspaceByIdInput struct {
+	ID       string
+	MemberID string
 }
 
 type UpdateWorkspaceInput struct {
@@ -74,13 +83,25 @@ func (w *WorkspaceService) CreateWorkspace(ctx context.Context, input CreateWork
 	if err != nil {
 		return Workspace{}, err
 	}
+	_, err = w.store.AddMember(ctx, db.AddMemberParams{
+		WorkspaceID: workspace.ID,
+		UserID:      ownerID,
+		Role:        "administrator",
+	})
+	if err != nil {
+		return Workspace{}, err
+	}
 	return mapDbWorkspaceToDomain(workspace), nil
 }
 
-func (w *WorkspaceService) GetWorkspaceByID(ctx context.Context, id string) (Workspace, error) {
+func (w *WorkspaceService) GetWorkspaceByID(ctx context.Context, input GetWorkspaceByIdInput) (Workspace, error) {
 	var workspaceID pgtype.UUID
-	if err := workspaceID.Scan(id); err != nil {
+	if err := workspaceID.Scan(input.ID); err != nil {
 		return Workspace{}, common.ErrInvalidWorkspaceID
+	}
+	var memberID pgtype.UUID
+	if err := memberID.Scan(input.MemberID); err != nil {
+		return Workspace{}, ErrInvalidMemberID
 	}
 	workspace, err := w.store.GetWorkspaceByID(ctx, workspaceID)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -89,15 +110,25 @@ func (w *WorkspaceService) GetWorkspaceByID(ctx context.Context, id string) (Wor
 	if err != nil {
 		return Workspace{}, err
 	}
+	_, err = w.store.GetMember(ctx, db.GetMemberParams{
+		WorkspaceID: workspaceID,
+		UserID:      memberID,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Workspace{}, ErrNotWorkspaceMember
+	}
+	if err != nil {
+		return Workspace{}, err
+	}
 	return mapDbWorkspaceToDomain(workspace), nil
 }
 
-func (w *WorkspaceService) GetWorkspacesByOwnerID(ctx context.Context, ownerID string) ([]Workspace, error) {
-	var ownerUUID pgtype.UUID
-	if err := ownerUUID.Scan(ownerID); err != nil {
-		return nil, ErrInvalidOwnerID
+func (w *WorkspaceService) GetWorkspacesByMemberID(ctx context.Context, memberID string) ([]Workspace, error) {
+	var memberUUID pgtype.UUID
+	if err := memberUUID.Scan(memberID); err != nil {
+		return nil, ErrInvalidMemberID
 	}
-	workspaces, err := w.store.GetWorkspacesByOwnerID(ctx, ownerUUID)
+	workspaces, err := w.store.GetWorkspacesByMemberID(ctx, memberUUID)
 	if err != nil {
 		return nil, err
 	}

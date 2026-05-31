@@ -83,10 +83,10 @@ func TestGenerateInvite_Success(t *testing.T) {
 
 	require.NoError(t, err)
 	require.True(t, createCalled)
-	require.Equal(t, workspaceID, invite.WorkspaceID)
-	require.Equal(t, createdBy, invite.CreatedBy)
+	require.Equal(t, workspaceID.String(), invite.WorkspaceID)
+	require.Equal(t, createdBy.String(), invite.CreatedBy)
 	require.NotEmpty(t, invite.Token)
-	require.True(t, invite.ExpiresAt.Valid)
+	require.WithinDuration(t, before, invite.ExpiresAt, time.Second)
 }
 
 func TestGenerateInvite_InvalidIDs(t *testing.T) {
@@ -149,7 +149,10 @@ func TestGetInvite_Success(t *testing.T) {
 	invite, err := service.GetInvite(context.Background(), "valid-token")
 
 	require.NoError(t, err)
-	require.Equal(t, expectedInvite, invite)
+	require.Equal(t, expectedInvite.WorkspaceID.String(), invite.WorkspaceID)
+	require.Equal(t, expectedInvite.CreatedBy.String(), invite.CreatedBy)
+	require.Equal(t, expectedInvite.Token, invite.Token)
+	require.Equal(t, expectedInvite.ExpiresAt.Time, invite.ExpiresAt)
 }
 
 func TestGetInvite_NotFound(t *testing.T) {
