@@ -42,24 +42,34 @@ type AcceptInviteInput struct {
 	UserID string
 }
 
+type Invite struct {
+	ID          string
+	WorkspaceID string
+	CreatedBy   string
+	Token       string
+	CreatedAt   time.Time
+	ExpiresAt   time.Time
+	UsedAt      time.Time
+}
+
 func NewInviteService(store InviteStore) *InviteService {
 	return &InviteService{
 		inviteStore: store,
 	}
 }
 
-func (s *InviteService) GenerateInvite(ctx context.Context, input GenerateInviteInput) (db.Invite, error) {
+func (s *InviteService) GenerateInvite(ctx context.Context, input GenerateInviteInput) (Invite, error) {
 	var workspaceID pgtype.UUID
 	if err := workspaceID.Scan(input.WorkspaceID); err != nil {
-		return db.Invite{}, common.ErrInvalidWorkspaceID
+		return Invite{}, common.ErrInvalidWorkspaceID
 	}
 	var createdBy pgtype.UUID
 	if err := createdBy.Scan(input.CreatedBy); err != nil {
-		return db.Invite{}, common.ErrInvalidUserID
+		return Invite{}, common.ErrInvalidUserID
 	}
 	token, err := generateToken()
 	if err != nil {
-		return db.Invite{}, err
+		return Invite{}, err
 	}
 	expiresAt := pgtype.Timestamptz{
 		Time:  time.Now().Add(input.ExpiresIn),
@@ -71,24 +81,27 @@ func (s *InviteService) GenerateInvite(ctx context.Context, input GenerateInvite
 		CreatedBy:   createdBy,
 		ExpiresAt:   expiresAt,
 	})
-	return invite, err
+	if err != nil {
+		return Invite{}, err
+	}
+	return mapDbInviteToDomain(invite), nil
 }
 
-func (s *InviteService) GetInvite(ctx context.Context, token string) (db.Invite, error) {
+func (s *InviteService) GetInvite(ctx context.Context, token string) (Invite, error) {
 	invite, err := s.inviteStore.GetInviteByToken(ctx, token)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return db.Invite{}, ErrInviteNotFound
+		return Invite{}, ErrInviteNotFound
 	}
 	if err != nil {
-		return db.Invite{}, err
+		return Invite{}, err
 	}
 	if !invite.ExpiresAt.Valid || invite.ExpiresAt.Time.Before(time.Now()) {
-		return db.Invite{}, ErrInviteExpired
+		return Invite{}, ErrInviteExpired
 	}
 	if invite.UsedAt.Valid {
-		return db.Invite{}, ErrInviteUsed
+		return Invite{}, ErrInviteUsed
 	}
-	return invite, nil
+	return mapDbInviteToDomain(invite), nil
 }
 
 func (s *InviteService) AcceptInvite(ctx context.Context, input AcceptInviteInput) error {
@@ -100,8 +113,12 @@ func (s *InviteService) AcceptInvite(ctx context.Context, input AcceptInviteInpu
 	if err := userID.Scan(input.UserID); err != nil {
 		return common.ErrInvalidUserID
 	}
+	var workspaceID pgtype.UUID
+	if err := workspaceID.Scan(invite.WorkspaceID); err != nil {
+		return common.ErrInvalidWorkspaceID
+	}
 	if _, err := s.inviteStore.AddMember(ctx, db.AddMemberParams{
-		WorkspaceID: invite.WorkspaceID,
+		WorkspaceID: workspaceID,
 		UserID:      userID,
 		Role:        "member",
 	}); err != nil {
@@ -120,4 +137,20 @@ func generateToken() (string, error) {
 		return "", err
 	}
 	return base64.URLEncoding.EncodeToString(b), nil
+}
+
+func mapDbInviteToDomain(invite db.Invite) Invite {
+	var usedAt time.Time
+	if invite.UsedAt.Valid {
+		usedAt = invite.UsedAt.Time
+	}
+	return Invite{
+		ID:          invite.ID.String(),
+		WorkspaceID: invite.WorkspaceID.String(),
+		CreatedBy:   invite.CreatedBy.String(),
+		Token:       invite.Token,
+		CreatedAt:   invite.CreatedAt.Time,
+		ExpiresAt:   invite.ExpiresAt.Time,
+		UsedAt:      usedAt,
+	}
 }

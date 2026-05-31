@@ -5,6 +5,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/ottermq/otterboard/src/backend/internal/common"
+	"github.com/ottermq/otterboard/src/backend/pkg/dtos"
 )
 
 const (
@@ -34,7 +35,7 @@ func (h *Handler) GenerateInvite(c *fiber.Ctx) error {
 	if err != nil {
 		return common.HandlerError(c, err)
 	}
-	return c.JSON(invite)
+	return c.JSON(mapToInviteDto(invite))
 }
 
 func (h *Handler) GetInvite(c *fiber.Ctx) error {
@@ -42,7 +43,7 @@ func (h *Handler) GetInvite(c *fiber.Ctx) error {
 	if err != nil {
 		return common.HandlerError(c, err)
 	}
-	return c.JSON(invite)
+	return c.JSON(mapToInviteDto(invite))
 }
 
 func (h *Handler) AcceptInvite(c *fiber.Ctx) error {
@@ -58,4 +59,16 @@ func (h *Handler) AcceptInvite(c *fiber.Ctx) error {
 		return common.HandlerError(c, err)
 	}
 	return c.JSON(fiber.Map{"message": "invite accepted"})
+}
+
+func mapToInviteDto(invite Invite) dtos.InviteDto {
+	return dtos.InviteDto{
+		ID:          invite.ID,
+		WorkspaceID: invite.WorkspaceID,
+		CreatedBy:   invite.CreatedBy,
+		Token:       invite.Token,
+		CreatedAt:   invite.CreatedAt,
+		ExpiresAt:   invite.ExpiresAt,
+		UsedAt:      invite.UsedAt,
+	}
 }
