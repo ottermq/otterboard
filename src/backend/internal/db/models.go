@@ -28,6 +28,30 @@ type Invite struct {
 	UsedAt      pgtype.Timestamptz
 }
 
+type Issue struct {
+	ID         pgtype.UUID
+	ProjectID  pgtype.UUID
+	Title      string
+	Overview   pgtype.Text
+	Type       string
+	Status     string
+	Position   float64
+	AssigneeID pgtype.UUID
+	CreatedBy  pgtype.UUID
+	DueDate    pgtype.Date
+	CreatedAt  pgtype.Timestamptz
+	UpdatedAt  pgtype.Timestamptz
+}
+
+type Project struct {
+	ID          pgtype.UUID
+	WorkspaceID pgtype.UUID
+	Name        string
+	ImageUrl    pgtype.Text
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+}
+
 type User struct {
 	ID           pgtype.UUID
 	Email        string

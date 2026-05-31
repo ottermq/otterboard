@@ -17,12 +17,12 @@ Define the foundations before any code.
 
 - [ ] OAuth login (at least one provider)
 - [x] Email/password login and registration
-- [ ] API key creation and revocation
+- [x] API key creation and revocation
 - [x] Workspace creation
-- [x] Workspace read, update, delete (owner only)
-- [ ] Member invite via shareable link
-- [ ] Role assignment (Guest, Member, Administrator)
-- [ ] Permission checks across all workspace-scoped operations
+- [x] Workspace read, update, delete (member-based permission checks)
+- [x] Member invite via shareable link
+- [x] Role assignment (Guest, Member, Administrator)
+- [x] Permission checks across all workspace-scoped operations
 
 ---
 
