@@ -12,6 +12,11 @@ import (
 	"github.com/ottermq/otterboard/src/backend/internal/db"
 )
 
+const (
+	DefaultLimit = 20
+	MaxLimit     = 100
+)
+
 var (
 	ErrProjectNotFound    = common.NewAppError(http.StatusNotFound, "project not found")
 	ErrInvalidProjectID   = common.NewAppError(http.StatusBadRequest, "invalid project ID")
@@ -30,6 +35,7 @@ type Project struct {
 type ProjectStore interface {
 	CreateProject(ctx context.Context, arg db.CreateProjectParams) (db.Project, error)
 	GetProjectByID(ctx context.Context, arg db.GetProjectByIDParams) (db.Project, error)
+	ListProjectsByWorkspace(ctx context.Context, arg db.ListProjectsByWorkspaceParams) ([]db.Project, error)
 }
 
 type ProjectService struct {
@@ -51,6 +57,12 @@ type CreateProjectInput struct {
 type GetProjectByIdInput struct {
 	ID          string
 	WorkspaceID string
+}
+
+type ListProjectsByWorkspaceInput struct {
+	WorkspaceID string
+	Page        int32
+	Limit       int32
 }
 
 func (p *ProjectService) CreateProject(ctx context.Context, input CreateProjectInput) (Project, error) {
@@ -85,7 +97,7 @@ func (p *ProjectService) GetProjectByID(ctx context.Context, input GetProjectByI
 	}
 
 	var workspaceID pgtype.UUID
-	if err := projectID.Scan(input.WorkspaceID); err != nil {
+	if err := workspaceID.Scan(input.WorkspaceID); err != nil {
 		return Project{}, common.ErrInvalidWorkspaceID
 	}
 
@@ -101,6 +113,39 @@ func (p *ProjectService) GetProjectByID(ctx context.Context, input GetProjectByI
 		return Project{}, err
 	}
 	return mapDbProjectToDomain(project), nil
+}
+
+func (p *ProjectService) ListProjectsByWorkspace(ctx context.Context, input ListProjectsByWorkspaceInput) ([]Project, error) {
+	var workspaceID pgtype.UUID
+	if err := workspaceID.Scan(input.WorkspaceID); err != nil {
+		return []Project{}, common.ErrInvalidWorkspaceID
+	}
+
+	page := input.Page
+	if page < 1 {
+		page = 1
+	}
+	limit := input.Limit
+	if limit < 1 {
+		limit = DefaultLimit
+	} else if limit > MaxLimit {
+		limit = MaxLimit
+	}
+	offset := (page - 1) * limit
+
+	projects, err := p.store.ListProjectsByWorkspace(ctx, db.ListProjectsByWorkspaceParams{
+		WorkspaceID: workspaceID,
+		Limit:       limit,
+		Offset:      offset,
+	})
+	if err != nil {
+		return []Project{}, err
+	}
+	domainProjects := make([]Project, len(projects))
+	for i, proj := range projects {
+		domainProjects[i] = mapDbProjectToDomain(proj)
+	}
+	return domainProjects, nil
 }
 
 func mapDbProjectToDomain(project db.Project) Project {

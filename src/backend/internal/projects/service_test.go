@@ -14,8 +14,9 @@ import (
 )
 
 type mockProjectStore struct {
-	createProjectFn  func(ctx context.Context, arg db.CreateProjectParams) (db.Project, error)
-	getProjectByIDFn func(ctx context.Context, arg db.GetProjectByIDParams) (db.Project, error)
+	createProjectFn           func(ctx context.Context, arg db.CreateProjectParams) (db.Project, error)
+	getProjectByIDFn          func(ctx context.Context, arg db.GetProjectByIDParams) (db.Project, error)
+	listProjectsByWorkspaceFn func(ctx context.Context, arg db.ListProjectsByWorkspaceParams) ([]db.Project, error)
 }
 
 func (m *mockProjectStore) CreateProject(ctx context.Context, arg db.CreateProjectParams) (db.Project, error) {
@@ -30,6 +31,14 @@ func (m *mockProjectStore) GetProjectByID(ctx context.Context, arg db.GetProject
 		panic("unexpected call to GetProjectByID")
 	}
 	return m.getProjectByIDFn(ctx, arg)
+}
+
+func (m *mockProjectStore) ListProjectsByWorkspace(ctx context.Context, arg db.ListProjectsByWorkspaceParams) ([]db.Project, error) {
+	if m.listProjectsByWorkspaceFn == nil {
+		panic("unexpected call to ListProjectsByWorkspace")
+	}
+
+	return m.listProjectsByWorkspaceFn(ctx, arg)
 }
 
 func mustUUID(t *testing.T, id string) pgtype.UUID {
@@ -235,4 +244,169 @@ func TestGetProjectByID_StoreError(t *testing.T) {
 	})
 	require.ErrorIs(t, err, expectedErr)
 	require.Equal(t, projects.Project{}, project)
+}
+
+func TestListProjectsByWorkspace_Success(t *testing.T) {
+	workspaceID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
+	projectID := mustUUID(t, "22222222-2222-2222-2222-222222222222")
+
+	store := &mockProjectStore{
+		listProjectsByWorkspaceFn: func(ctx context.Context, arg db.ListProjectsByWorkspaceParams) ([]db.Project, error) {
+			require.Equal(t, workspaceID, arg.WorkspaceID)
+			require.Equal(t, int32(1), arg.Limit)
+			require.Equal(t, int32(0), arg.Offset)
+			return []db.Project{
+				{
+					ID:          projectID,
+					WorkspaceID: workspaceID,
+				},
+			}, nil
+		},
+	}
+	service := projects.NewProjectService(store)
+	got, err := service.ListProjectsByWorkspace(context.Background(), projects.ListProjectsByWorkspaceInput{
+		WorkspaceID: workspaceID.String(),
+		Page:        1,
+		Limit:       1,
+	})
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.Equal(t, projectID.String(), got[0].ID)
+	require.Equal(t, workspaceID.String(), got[0].WorkspaceID)
+}
+
+func TestListProjectsByWorkspace_InvalidWorkspaceID(t *testing.T) {
+
+	store := &mockProjectStore{
+		listProjectsByWorkspaceFn: func(ctx context.Context, arg db.ListProjectsByWorkspaceParams) ([]db.Project, error) {
+			t.Fatal("ListProject should not be called with invalid input")
+			return []db.Project{}, nil
+		},
+	}
+
+	service := projects.NewProjectService(store)
+	got, err := service.ListProjectsByWorkspace(context.Background(), projects.ListProjectsByWorkspaceInput{
+		WorkspaceID: "invalid UUID",
+		Page:        1,
+		Limit:       1,
+	})
+
+	require.ErrorIs(t, err, common.ErrInvalidWorkspaceID)
+	require.Equal(t, []projects.Project{}, got)
+}
+
+func TestListProjectsByWorkspace_StoreError(t *testing.T) {
+	workspaceID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
+	expectedErr := errors.New("generic storage error")
+
+	store := &mockProjectStore{
+		listProjectsByWorkspaceFn: func(ctx context.Context, arg db.ListProjectsByWorkspaceParams) ([]db.Project, error) {
+			return []db.Project{}, expectedErr
+		},
+	}
+
+	service := projects.NewProjectService(store)
+	got, err := service.ListProjectsByWorkspace(context.Background(), projects.ListProjectsByWorkspaceInput{
+		WorkspaceID: workspaceID.String(),
+		Page:        1,
+		Limit:       1,
+	})
+
+	require.ErrorIs(t, err, expectedErr)
+	require.Equal(t, []projects.Project{}, got)
+}
+
+func TestListProjectsByWorkspace_EmptyResult(t *testing.T) {
+	workspaceID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
+
+	store := &mockProjectStore{
+		listProjectsByWorkspaceFn: func(ctx context.Context, arg db.ListProjectsByWorkspaceParams) ([]db.Project, error) {
+			return []db.Project{}, nil
+		},
+	}
+
+	service := projects.NewProjectService(store)
+	got, err := service.ListProjectsByWorkspace(context.Background(), projects.ListProjectsByWorkspaceInput{
+		WorkspaceID: workspaceID.String(),
+		Page:        1,
+		Limit:       1,
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, []projects.Project{}, got)
+}
+
+func TestListProjectsByWorkspace_Pagination(t *testing.T) {
+	workspaceID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
+
+	tests := []struct {
+		name       string
+		page       int32
+		limit      int32
+		wantLimit  int32
+		wantOffset int32
+	}{
+		{
+			name:       "first page",
+			page:       1,
+			limit:      10,
+			wantLimit:  10,
+			wantOffset: 0,
+		},
+		{
+			name:       "second page",
+			page:       2,
+			limit:      10,
+			wantLimit:  10,
+			wantOffset: 10,
+		},
+		{
+			name:       "third page with different limit",
+			page:       3,
+			limit:      25,
+			wantLimit:  25,
+			wantOffset: 50,
+		},
+		{
+			name:       "forth page with invalid limit",
+			page:       4,
+			limit:      -1,
+			wantLimit:  projects.DefaultLimit,
+			wantOffset: 60,
+		},
+		{
+			name:       "no page with invalid limit",
+			limit:      -1,
+			wantLimit:  projects.DefaultLimit,
+			wantOffset: 0,
+		},
+		{
+			name:       "limit beyond max",
+			limit:      200,
+			wantLimit:  projects.MaxLimit,
+			wantOffset: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			store := &mockProjectStore{
+				listProjectsByWorkspaceFn: func(ctx context.Context, arg db.ListProjectsByWorkspaceParams) ([]db.Project, error) {
+					require.Equal(t, workspaceID, arg.WorkspaceID)
+					require.Equal(t, tt.wantLimit, arg.Limit)
+					require.Equal(t, tt.wantOffset, arg.Offset)
+					return []db.Project{}, nil
+				},
+			}
+
+			service := projects.NewProjectService(store)
+			got, err := service.ListProjectsByWorkspace(context.Background(), projects.ListProjectsByWorkspaceInput{
+				WorkspaceID: workspaceID.String(),
+				Page:        tt.page,
+				Limit:       tt.limit,
+			})
+			require.NoError(t, err)
+			require.Empty(t, got)
+		})
+	}
 }
