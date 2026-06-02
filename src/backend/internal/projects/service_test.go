@@ -17,6 +17,7 @@ type mockProjectStore struct {
 	createProjectFn           func(ctx context.Context, arg db.CreateProjectParams) (db.Project, error)
 	getProjectByIDFn          func(ctx context.Context, arg db.GetProjectByIDParams) (db.Project, error)
 	listProjectsByWorkspaceFn func(ctx context.Context, arg db.ListProjectsByWorkspaceParams) ([]db.Project, error)
+	updateProjectFn           func(ctx context.Context, arg db.UpdateProjectParams) (db.Project, error)
 }
 
 func (m *mockProjectStore) CreateProject(ctx context.Context, arg db.CreateProjectParams) (db.Project, error) {
@@ -39,6 +40,14 @@ func (m *mockProjectStore) ListProjectsByWorkspace(ctx context.Context, arg db.L
 	}
 
 	return m.listProjectsByWorkspaceFn(ctx, arg)
+}
+
+func (m *mockProjectStore) UpdateProject(ctx context.Context, arg db.UpdateProjectParams) (db.Project, error) {
+	if m.updateProjectFn == nil {
+		panic("unexpected call to UpdateProject")
+	}
+
+	return m.updateProjectFn(ctx, arg)
 }
 
 func mustUUID(t *testing.T, id string) pgtype.UUID {
@@ -113,10 +122,10 @@ func TestCreateProject_ValidationErrors(t *testing.T) {
 			}
 
 			service := projects.NewProjectService(store)
-			project, err := service.CreateProject(context.Background(), tt.input)
+			got, err := service.CreateProject(context.Background(), tt.input)
 
 			require.ErrorIs(t, err, tt.wantError)
-			require.Equal(t, projects.Project{}, project)
+			require.Equal(t, projects.Project{}, got)
 		})
 	}
 }
@@ -409,4 +418,139 @@ func TestListProjectsByWorkspace_Pagination(t *testing.T) {
 			require.Empty(t, got)
 		})
 	}
+}
+
+func TestUpdateProject_Success(t *testing.T) {
+	wkspID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
+	projectID := mustUUID(t, "22222222-2222-2222-2222-222222222222")
+	projectName := "Updated Project"
+	projectImageUrl := "updated_image.jpg"
+
+	store := &mockProjectStore{
+		updateProjectFn: func(ctx context.Context, arg db.UpdateProjectParams) (db.Project, error) {
+			require.Equal(t, wkspID, arg.WorkspaceID)
+			require.Equal(t, projectID, arg.ID)
+			require.Equal(t, projectName, arg.Name)
+			require.Equal(t, pgtype.Text{String: "updated_image.jpg", Valid: true}, arg.ImageUrl)
+
+			return db.Project{
+				WorkspaceID: arg.WorkspaceID,
+				ID:          arg.ID,
+				Name:        arg.Name,
+				ImageUrl:    arg.ImageUrl,
+			}, nil
+		},
+	}
+
+	service := projects.NewProjectService(store)
+
+	got, err := service.UpdateProject(context.Background(), projects.UpdateProjectInput{
+		WorkspaceID: wkspID.String(),
+		ID:          projectID.String(),
+		Name:        projectName,
+		ImageUrl:    projectImageUrl,
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, wkspID.String(), got.WorkspaceID)
+	require.Equal(t, projectID.String(), got.ID)
+	require.Equal(t, projectName, got.Name)
+	require.Equal(t, projectImageUrl, got.ImageUrl)
+}
+
+func TestUpdateProject_ValidationErrors(t *testing.T) {
+	validWorkspaceID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
+	validProjectID := mustUUID(t, "22222222-2222-2222-2222-222222222222")
+	validName := "Valid Name"
+
+	tests := []struct {
+		name      string
+		input     projects.UpdateProjectInput
+		wantError error
+	}{
+		{
+			name: "invalid workspace id",
+			input: projects.UpdateProjectInput{
+				WorkspaceID: "invalid UUID",
+				ID:          validProjectID.String(),
+				Name:        validName,
+			},
+			wantError: common.ErrInvalidWorkspaceID,
+		},
+		{
+			name: "invalid project id",
+			input: projects.UpdateProjectInput{
+				WorkspaceID: validWorkspaceID.String(),
+				ID:          "invalid UUID",
+				Name:        validName,
+			},
+			wantError: projects.ErrInvalidProjectID,
+		},
+		{
+			name: "empty project name",
+			input: projects.UpdateProjectInput{
+				WorkspaceID: validWorkspaceID.String(),
+				ID:          validProjectID.String(),
+			},
+			wantError: projects.ErrInvalidProjectName,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			store := &mockProjectStore{
+				updateProjectFn: func(ctx context.Context, arg db.UpdateProjectParams) (db.Project, error) {
+					t.Fatal("UpdateProject should not be called with invalid input")
+					return db.Project{}, nil
+				},
+			}
+
+			service := projects.NewProjectService(store)
+			got, err := service.UpdateProject(context.Background(), tt.input)
+			require.ErrorIs(t, err, tt.wantError)
+			require.Equal(t, projects.Project{}, got)
+		})
+	}
+}
+
+func TestUpdateProject_StoreError(t *testing.T) {
+	workspaceID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
+	projectID := mustUUID(t, "22222222-2222-2222-2222-222222222222")
+	expectedErr := errors.New("generic storage error")
+
+	store := &mockProjectStore{
+		updateProjectFn: func(ctx context.Context, arg db.UpdateProjectParams) (db.Project, error) {
+			return db.Project{}, expectedErr
+		},
+	}
+
+	service := projects.NewProjectService(store)
+	got, err := service.UpdateProject(context.Background(), projects.UpdateProjectInput{
+		WorkspaceID: workspaceID.String(),
+		ID:          projectID.String(),
+		Name:        "Generic name",
+	})
+	require.ErrorIs(t, err, expectedErr)
+	require.Equal(t, projects.Project{}, got)
+}
+
+func TestUpdateProject_NotFound(t *testing.T) {
+	workspaceID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
+	projectID := mustUUID(t, "22222222-2222-2222-2222-222222222222")
+	expectedErr := projects.ErrProjectNotFound
+
+	store := &mockProjectStore{
+		updateProjectFn: func(ctx context.Context, arg db.UpdateProjectParams) (db.Project, error) {
+			return db.Project{}, pgx.ErrNoRows
+		},
+	}
+
+	service := projects.NewProjectService(store)
+	got, err := service.UpdateProject(context.Background(), projects.UpdateProjectInput{
+		WorkspaceID: workspaceID.String(),
+		ID:          projectID.String(),
+		Name:        "Generic name",
+	})
+	require.ErrorIs(t, err, expectedErr)
+	require.Equal(t, projects.Project{}, got)
 }

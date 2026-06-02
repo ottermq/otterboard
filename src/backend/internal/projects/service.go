@@ -36,6 +36,7 @@ type ProjectStore interface {
 	CreateProject(ctx context.Context, arg db.CreateProjectParams) (db.Project, error)
 	GetProjectByID(ctx context.Context, arg db.GetProjectByIDParams) (db.Project, error)
 	ListProjectsByWorkspace(ctx context.Context, arg db.ListProjectsByWorkspaceParams) ([]db.Project, error)
+	UpdateProject(ctx context.Context, arg db.UpdateProjectParams) (db.Project, error)
 }
 
 type ProjectService struct {
@@ -63,6 +64,13 @@ type ListProjectsByWorkspaceInput struct {
 	WorkspaceID string
 	Page        int32
 	Limit       int32
+}
+
+type UpdateProjectInput struct {
+	ID          string
+	WorkspaceID string
+	Name        string
+	ImageUrl    string
 }
 
 func (p *ProjectService) CreateProject(ctx context.Context, input CreateProjectInput) (Project, error) {
@@ -146,6 +154,44 @@ func (p *ProjectService) ListProjectsByWorkspace(ctx context.Context, input List
 		domainProjects[i] = mapDbProjectToDomain(proj)
 	}
 	return domainProjects, nil
+}
+
+func (p *ProjectService) UpdateProject(ctx context.Context, input UpdateProjectInput) (Project, error) {
+	var workspaceID pgtype.UUID
+	if err := workspaceID.Scan(input.WorkspaceID); err != nil {
+		return Project{}, common.ErrInvalidWorkspaceID
+	}
+
+	var id pgtype.UUID
+	if err := id.Scan(input.ID); err != nil {
+		return Project{}, ErrInvalidProjectID
+	}
+
+	if input.Name == "" {
+		return Project{}, ErrInvalidProjectName
+	}
+
+	var imageUrl pgtype.Text
+	if input.ImageUrl == "" {
+		imageUrl = pgtype.Text{Valid: false}
+	} else {
+		imageUrl = pgtype.Text{String: input.ImageUrl, Valid: true}
+	}
+
+	updated, err := p.store.UpdateProject(ctx, db.UpdateProjectParams{
+		ID:          id,
+		WorkspaceID: workspaceID,
+		Name:        input.Name,
+		ImageUrl:    imageUrl,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Project{}, ErrProjectNotFound
+	}
+	if err != nil {
+		return Project{}, err
+	}
+	return mapDbProjectToDomain(updated), nil
+
 }
 
 func mapDbProjectToDomain(project db.Project) Project {
