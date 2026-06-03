@@ -18,6 +18,7 @@ type mockProjectStore struct {
 	getProjectByIDFn          func(ctx context.Context, arg db.GetProjectByIDParams) (db.Project, error)
 	listProjectsByWorkspaceFn func(ctx context.Context, arg db.ListProjectsByWorkspaceParams) ([]db.Project, error)
 	updateProjectFn           func(ctx context.Context, arg db.UpdateProjectParams) (db.Project, error)
+	deleteProjectFn           func(ctx context.Context, arg db.DeleteProjectParams) error
 }
 
 func (m *mockProjectStore) CreateProject(ctx context.Context, arg db.CreateProjectParams) (db.Project, error) {
@@ -48,6 +49,14 @@ func (m *mockProjectStore) UpdateProject(ctx context.Context, arg db.UpdateProje
 	}
 
 	return m.updateProjectFn(ctx, arg)
+}
+
+func (m *mockProjectStore) DeleteProject(ctx context.Context, arg db.DeleteProjectParams) error {
+	if m.deleteProjectFn == nil {
+		panic("unexpected call to DeleteProject")
+	}
+
+	return m.deleteProjectFn(ctx, arg)
 }
 
 func mustUUID(t *testing.T, id string) pgtype.UUID {
@@ -553,4 +562,87 @@ func TestUpdateProject_NotFound(t *testing.T) {
 	})
 	require.ErrorIs(t, err, expectedErr)
 	require.Equal(t, projects.Project{}, got)
+}
+
+func TestDeleteProject_Success(t *testing.T) {
+	workspaceID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
+	projectID := mustUUID(t, "22222222-2222-2222-2222-222222222222")
+
+	store := &mockProjectStore{
+		deleteProjectFn: func(ctx context.Context, arg db.DeleteProjectParams) error {
+			require.Equal(t, workspaceID, arg.WorkspaceID)
+			require.Equal(t, projectID, arg.ID)
+
+			return nil
+		},
+	}
+
+	service := projects.NewProjectService(store)
+	err := service.DeleteProject(context.Background(), projects.DeleteProjectInput{
+		WorkspaceID: workspaceID.String(),
+		ID:          projectID.String(),
+	})
+	require.NoError(t, err)
+}
+
+func TestDeleteProject_ValidationErrors(t *testing.T) {
+	validWorkspaceID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
+	validProjectID := mustUUID(t, "22222222-2222-2222-2222-222222222222")
+
+	tests := []struct {
+		name      string
+		input     projects.DeleteProjectInput
+		wantError error
+	}{
+		{
+			name: "invalid workspace id",
+			input: projects.DeleteProjectInput{
+				WorkspaceID: "invalid UUID",
+				ID:          validProjectID.String(),
+			},
+			wantError: common.ErrInvalidWorkspaceID,
+		},
+		{
+			name: "invalid project id",
+			input: projects.DeleteProjectInput{
+				WorkspaceID: validWorkspaceID.String(),
+				ID:          "invalid UUID",
+			},
+			wantError: projects.ErrInvalidProjectID,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			store := &mockProjectStore{
+				deleteProjectFn: func(ctx context.Context, arg db.DeleteProjectParams) error {
+					t.Fatal("DeleteProjects should not be called with invalid input")
+					return nil
+				},
+			}
+
+			service := projects.NewProjectService(store)
+			err := service.DeleteProject(context.Background(), tt.input)
+			require.ErrorIs(t, err, tt.wantError)
+		})
+	}
+}
+
+func TestDeleteProject_StoreError(t *testing.T) {
+	workspaceID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
+	projectID := mustUUID(t, "22222222-2222-2222-2222-222222222222")
+	expectedErr := errors.New("generic storage error")
+
+	store := &mockProjectStore{
+		deleteProjectFn: func(ctx context.Context, arg db.DeleteProjectParams) error {
+			return expectedErr
+		},
+	}
+
+	service := projects.NewProjectService(store)
+	err := service.DeleteProject(context.Background(), projects.DeleteProjectInput{
+		WorkspaceID: workspaceID.String(),
+		ID:          projectID.String(),
+	})
+	require.ErrorIs(t, err, expectedErr)
 }

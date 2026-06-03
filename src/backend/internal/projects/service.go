@@ -37,6 +37,7 @@ type ProjectStore interface {
 	GetProjectByID(ctx context.Context, arg db.GetProjectByIDParams) (db.Project, error)
 	ListProjectsByWorkspace(ctx context.Context, arg db.ListProjectsByWorkspaceParams) ([]db.Project, error)
 	UpdateProject(ctx context.Context, arg db.UpdateProjectParams) (db.Project, error)
+	DeleteProject(ctx context.Context, arg db.DeleteProjectParams) error
 }
 
 type ProjectService struct {
@@ -71,6 +72,11 @@ type UpdateProjectInput struct {
 	WorkspaceID string
 	Name        string
 	ImageUrl    string
+}
+
+type DeleteProjectInput struct {
+	ID          string
+	WorkspaceID string
 }
 
 func (p *ProjectService) CreateProject(ctx context.Context, input CreateProjectInput) (Project, error) {
@@ -191,7 +197,25 @@ func (p *ProjectService) UpdateProject(ctx context.Context, input UpdateProjectI
 		return Project{}, err
 	}
 	return mapDbProjectToDomain(updated), nil
+}
 
+func (p *ProjectService) DeleteProject(ctx context.Context, input DeleteProjectInput) error {
+	var workspaceID pgtype.UUID
+	if err := workspaceID.Scan(input.WorkspaceID); err != nil {
+		return common.ErrInvalidWorkspaceID
+	}
+
+	var id pgtype.UUID
+	if err := id.Scan(input.ID); err != nil {
+		return ErrInvalidProjectID
+	}
+
+	err := p.store.DeleteProject(ctx, db.DeleteProjectParams{
+		WorkspaceID: workspaceID,
+		ID:          id,
+	})
+
+	return err
 }
 
 func mapDbProjectToDomain(project db.Project) Project {
