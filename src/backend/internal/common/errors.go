@@ -10,7 +10,6 @@ import (
 
 var (
 	ErrInvalidOwnerID     = NewAppError(http.StatusBadRequest, "invalid owner ID")
-	ErrInvalidRequestorID = NewAppError(http.StatusBadRequest, "invalid requestor ID")
 	ErrInvalidUserID      = NewAppError(http.StatusBadRequest, "invalid user ID")
 	ErrInvalidWorkspaceID = NewAppError(http.StatusBadRequest, "invalid workspace ID")
 	ErrForbidden          = NewAppError(http.StatusForbidden, "forbidden")
