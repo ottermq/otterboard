@@ -14,11 +14,12 @@ import (
 )
 
 type mockProjectStore struct {
-	createProjectFn           func(ctx context.Context, arg db.CreateProjectParams) (db.Project, error)
-	getProjectByIDFn          func(ctx context.Context, arg db.GetProjectByIDParams) (db.Project, error)
-	listProjectsByWorkspaceFn func(ctx context.Context, arg db.ListProjectsByWorkspaceParams) ([]db.Project, error)
-	updateProjectFn           func(ctx context.Context, arg db.UpdateProjectParams) (db.Project, error)
-	deleteProjectFn           func(ctx context.Context, arg db.DeleteProjectParams) error
+	createProjectFn            func(ctx context.Context, arg db.CreateProjectParams) (db.Project, error)
+	getProjectByIDFn           func(ctx context.Context, arg db.GetProjectByIDParams) (db.Project, error)
+	listProjectsByWorkspaceFn  func(ctx context.Context, arg db.ListProjectsByWorkspaceParams) ([]db.Project, error)
+	countProjectsByWorkspaceFn func(ctx context.Context, workspaceID pgtype.UUID) (int64, error)
+	updateProjectFn            func(ctx context.Context, arg db.UpdateProjectParams) (db.Project, error)
+	deleteProjectFn            func(ctx context.Context, arg db.DeleteProjectParams) error
 }
 
 func (m *mockProjectStore) CreateProject(ctx context.Context, arg db.CreateProjectParams) (db.Project, error) {
@@ -41,6 +42,14 @@ func (m *mockProjectStore) ListProjectsByWorkspace(ctx context.Context, arg db.L
 	}
 
 	return m.listProjectsByWorkspaceFn(ctx, arg)
+}
+
+func (m *mockProjectStore) CountProjectsByWorkspace(ctx context.Context, workspaceID pgtype.UUID) (int64, error) {
+	if m.countProjectsByWorkspaceFn == nil {
+		panic("unexpected call to CountProjectsByWorkspace")
+	}
+
+	return m.countProjectsByWorkspaceFn(ctx, workspaceID)
 }
 
 func (m *mockProjectStore) UpdateProject(ctx context.Context, arg db.UpdateProjectParams) (db.Project, error) {

@@ -36,6 +36,7 @@ type ProjectStore interface {
 	CreateProject(ctx context.Context, arg db.CreateProjectParams) (db.Project, error)
 	GetProjectByID(ctx context.Context, arg db.GetProjectByIDParams) (db.Project, error)
 	ListProjectsByWorkspace(ctx context.Context, arg db.ListProjectsByWorkspaceParams) ([]db.Project, error)
+	CountProjectsByWorkspace(ctx context.Context, workspaceID pgtype.UUID) (int64, error)
 	UpdateProject(ctx context.Context, arg db.UpdateProjectParams) (db.Project, error)
 	DeleteProject(ctx context.Context, arg db.DeleteProjectParams) error
 }
