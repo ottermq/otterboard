@@ -1,10 +1,13 @@
 package api_keys
 
-import "github.com/gofiber/fiber/v2"
+import (
+	"github.com/gofiber/fiber/v2"
+	"github.com/ottermq/otterboard/src/backend/internal/middleware"
+)
 
-func RegisterApiKeyRoutes(api fiber.Router, h *Handler) {
-	g := api.Group("/workspaces")
-	g.Post("/:workspaceId/api-keys", h.CreateApiKey)
-	g.Get("/:workspaceId/api-keys", h.ListApiKeys)
-	g.Delete("/:workspaceId/api-keys/:keyId", h.RevokeApiKey)
+func RegisterApiKeyRoutes(wsGroup fiber.Router, h *Handler) {
+	g := wsGroup.Group("/api-keys", middleware.RequireRole(middleware.RoleAdmin))
+	g.Post("/", h.CreateApiKey)
+	g.Get("/", h.ListApiKeys)
+	g.Delete("/:keyId", h.RevokeApiKey)
 }

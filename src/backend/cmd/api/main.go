@@ -15,6 +15,7 @@ import (
 	"github.com/ottermq/otterboard/src/backend/internal/db"
 	"github.com/ottermq/otterboard/src/backend/internal/invites"
 	"github.com/ottermq/otterboard/src/backend/internal/members"
+	"github.com/ottermq/otterboard/src/backend/internal/middleware"
 	"github.com/ottermq/otterboard/src/backend/internal/routes"
 	"github.com/ottermq/otterboard/src/backend/internal/workspaces"
 	"github.com/redis/go-redis/v9"
@@ -40,21 +41,25 @@ func main() {
 	auth.RegisterAuthRoutes(app, auth.NewHandler(authService, sessionStore, !cfg.DevMode))
 
 	api := routes.RegisterProtectedRoutes(app, auth.AuthMiddleware(sessionStore))
+	wsGroup := api.Group("/workspaces/:workspaceId", middleware.RequireWorkspaceMember(queries))
 
 	workspaceService := workspaces.NewWorkspaceService(queries)
-	workspaces.RegisterWorkspacesRoutes(api, workspaces.NewHandler(workspaceService))
+	workspaceHandler := workspaces.NewHandler(workspaceService)
+	workspaces.RegisterWorkspacesRoutes(api, workspaceHandler)
+	workspaces.RegisterWorkspacesScopedRoutes(wsGroup, workspaceHandler)
 
 	membersService := members.NewMemberService(queries)
-	members.RegisterMemberRoutes(api, members.NewHandler(membersService))
+	members.RegisterMemberRoutes(wsGroup, members.NewHandler(membersService))
 
 	inviteService := invites.NewInviteService(queries)
 	invitesHandler := invites.NewHandler(inviteService)
 	invites.RegisterInviteRoutes(unprotected, invitesHandler)
 	invites.RegisterProtectedInviteRoutes(api, invitesHandler)
+	invites.RegisterWorkspaceScopedInviteRoutes(wsGroup, invitesHandler)
 
 	apiKeyService := api_keys.NewApiKeyService(queries)
 	apiKeyHandler := api_keys.NewHandler(apiKeyService)
-	api_keys.RegisterApiKeyRoutes(api, apiKeyHandler)
+	api_keys.RegisterApiKeyRoutes(wsGroup, apiKeyHandler)
 
 	log.Fatal(app.Listen(fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)))
 }

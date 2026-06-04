@@ -1,10 +1,15 @@
 package members
 
-import "github.com/gofiber/fiber/v2"
+import (
+	"github.com/gofiber/fiber/v2"
+	"github.com/ottermq/otterboard/src/backend/internal/middleware"
+)
 
-func RegisterMemberRoutes(api fiber.Router, h *Handler) {
-	g := api.Group("/workspaces/:workspaceId/members")
+func RegisterMemberRoutes(wsGroup fiber.Router, h *Handler) {
+	g := wsGroup.Group("/members")
 	g.Get("/", h.ListMembers)
-	g.Patch("/:userId", h.UpdateMemberRole)
-	g.Delete("/:userId", h.RemoveMember)
+
+	adminGroup := g.Group("", middleware.RequireRole(middleware.RoleAdmin))
+	adminGroup.Patch("/:userId", h.UpdateMemberRole)
+	adminGroup.Delete("/:userId", h.RemoveMember)
 }

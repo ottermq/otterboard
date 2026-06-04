@@ -12,6 +12,12 @@ import (
 	"github.com/ottermq/otterboard/src/backend/internal/db"
 )
 
+const (
+	RoleAdmin  = "administrator"
+	RoleMember = "member"
+	RoleGuest  = "guest"
+)
+
 type WorkspaceAuthStore interface {
 	GetMember(ctx context.Context, arg db.GetMemberParams) (db.WorkspaceMember, error)
 }
