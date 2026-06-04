@@ -14,6 +14,8 @@ var (
 	ErrInvalidUserID      = NewAppError(http.StatusBadRequest, "invalid user ID")
 	ErrInvalidWorkspaceID = NewAppError(http.StatusBadRequest, "invalid workspace ID")
 	ErrForbidden          = NewAppError(http.StatusForbidden, "forbidden")
+	ErrUnauthorized       = NewAppError(http.StatusUnauthorized, "unauthorized")
+	ErrBadRequest         = NewAppError(http.StatusBadRequest, "invalid request")
 )
 
 type AppError struct {

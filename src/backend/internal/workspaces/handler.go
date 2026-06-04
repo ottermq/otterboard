@@ -19,7 +19,7 @@ func NewHandler(service *WorkspaceService) *Handler {
 func (h *Handler) CreateWorkspace(c *fiber.Ctx) error {
 	userID, ok := common.CurrentUserID(c)
 	if !ok {
-		return common.Unauthorized(c)
+		return common.HandlerError(c, common.ErrUnauthorized)
 	}
 
 	var req struct {
@@ -43,7 +43,7 @@ func (h *Handler) CreateWorkspace(c *fiber.Ctx) error {
 func (h *Handler) GetWorkspace(c *fiber.Ctx) error {
 	userID, ok := common.CurrentUserID(c)
 	if !ok {
-		return common.Unauthorized(c)
+		return common.HandlerError(c, common.ErrUnauthorized)
 	}
 
 	workspace, err := h.service.GetWorkspaceByID(c.Context(), GetWorkspaceByIdInput{
@@ -59,7 +59,7 @@ func (h *Handler) GetWorkspace(c *fiber.Ctx) error {
 func (h *Handler) ListWorkspaces(c *fiber.Ctx) error {
 	userID, ok := common.CurrentUserID(c)
 	if !ok {
-		return common.Unauthorized(c)
+		return common.HandlerError(c, common.ErrUnauthorized)
 	}
 
 	workspaces, err := h.service.GetWorkspacesByMemberID(c.Context(), userID)
@@ -77,7 +77,7 @@ func (h *Handler) ListWorkspaces(c *fiber.Ctx) error {
 func (h *Handler) UpdateWorkspace(c *fiber.Ctx) error {
 	userID, ok := common.CurrentUserID(c)
 	if !ok {
-		return common.Unauthorized(c)
+		return common.HandlerError(c, common.ErrUnauthorized)
 	}
 
 	var req struct {
@@ -102,7 +102,7 @@ func (h *Handler) UpdateWorkspace(c *fiber.Ctx) error {
 func (h *Handler) DeleteWorkspace(c *fiber.Ctx) error {
 	userID, ok := common.CurrentUserID(c)
 	if !ok {
-		return common.Unauthorized(c)
+		return common.HandlerError(c, common.ErrUnauthorized)
 	}
 
 	err := h.service.DeleteWorkspace(c.Context(), DeleteWorkspaceInput{
