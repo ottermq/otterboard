@@ -8,6 +8,7 @@ import (
 
 	"github.com/avast/retry-go/v4"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/jackc/pgx/v5"
 	"github.com/ottermq/otterboard/src/backend/internal/api_keys"
 	"github.com/ottermq/otterboard/src/backend/internal/auth"
@@ -16,6 +17,7 @@ import (
 	"github.com/ottermq/otterboard/src/backend/internal/invites"
 	"github.com/ottermq/otterboard/src/backend/internal/members"
 	"github.com/ottermq/otterboard/src/backend/internal/middleware"
+	"github.com/ottermq/otterboard/src/backend/internal/projects"
 	"github.com/ottermq/otterboard/src/backend/internal/routes"
 	"github.com/ottermq/otterboard/src/backend/internal/workspaces"
 	"github.com/redis/go-redis/v9"
@@ -61,6 +63,10 @@ func main() {
 	apiKeyHandler := api_keys.NewHandler(apiKeyService)
 	api_keys.RegisterApiKeyRoutes(wsGroup, apiKeyHandler)
 
+	projectService := projects.NewProjectService(queries)
+	projectHandler := projects.NewHandler(projectService)
+	projects.RegisterProjectRoutes(wsGroup, projectHandler)
+
 	log.Fatal(app.Listen(fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)))
 }
 
@@ -72,6 +78,7 @@ func InitializeFiber(cfg *config.Config) *fiber.App {
 		DisableStartupMessage: !cfg.DevMode,
 	}
 	app := fiber.New(config)
+	app.Use(logger.New(logger.ConfigDefault))
 	return app
 }
 

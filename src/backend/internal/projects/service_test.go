@@ -438,6 +438,57 @@ func TestListProjectsByWorkspace_Pagination(t *testing.T) {
 	}
 }
 
+func TestCountProjectsByWorkspace_Success(t *testing.T) {
+	workspaceID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
+	expectedCount := int64(3)
+
+	store := &mockProjectStore{
+		countProjectsByWorkspaceFn: func(_ context.Context, arg pgtype.UUID) (int64, error) {
+			require.Equal(t, workspaceID, arg)
+			return expectedCount, nil
+		},
+	}
+
+	service := projects.NewProjectService(store)
+	got, err := service.CountProjectsByWorkspace(context.Background(), workspaceID.String())
+
+	require.NoError(t, err)
+	require.Equal(t, expectedCount, got)
+}
+
+func TestCountProjectsByWorkspace_InvalidWorkspaceID(t *testing.T) {
+	store := &mockProjectStore{
+		countProjectsByWorkspaceFn: func(_ context.Context, arg pgtype.UUID) (int64, error) {
+			t.Fatal("CountProjectsByWorkspace should not be called with invalid input")
+			return 0, nil
+		},
+	}
+
+	service := projects.NewProjectService(store)
+	got, err := service.CountProjectsByWorkspace(context.Background(), "invalid UUID")
+
+	require.ErrorIs(t, err, common.ErrInvalidWorkspaceID)
+	require.Zero(t, got)
+}
+
+func TestCountProjectsByWorkspace_StoreError(t *testing.T) {
+	workspaceID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
+	expectedErr := errors.New("generic storage error")
+
+	store := &mockProjectStore{
+		countProjectsByWorkspaceFn: func(_ context.Context, arg pgtype.UUID) (int64, error) {
+			require.Equal(t, workspaceID, arg)
+			return 0, expectedErr
+		},
+	}
+
+	service := projects.NewProjectService(store)
+	got, err := service.CountProjectsByWorkspace(context.Background(), workspaceID.String())
+
+	require.ErrorIs(t, err, expectedErr)
+	require.Zero(t, got)
+}
+
 func TestUpdateProject_Success(t *testing.T) {
 	wkspID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
 	projectID := mustUUID(t, "22222222-2222-2222-2222-222222222222")

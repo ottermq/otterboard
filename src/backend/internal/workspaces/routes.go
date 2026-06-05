@@ -12,9 +12,9 @@ func RegisterWorkspacesRoutes(api fiber.Router, h *Handler) {
 }
 
 func RegisterWorkspacesScopedRoutes(wsGroup fiber.Router, h *Handler) {
-	wsGroup.Get("", h.GetWorkspace)
+	wsGroup.Get("/", h.GetWorkspace)
 
-	adminGroup := wsGroup.Group("", middleware.RequireRole(middleware.RoleAdmin))
-	adminGroup.Patch("", h.UpdateWorkspace)
-	adminGroup.Delete("", h.DeleteWorkspace)
+	adminGroup := wsGroup.Group("/", middleware.RequireRole(middleware.RoleAdmin))
+	adminGroup.Patch("/", h.UpdateWorkspace)
+	adminGroup.Delete("/", h.DeleteWorkspace)
 }

@@ -136,10 +136,7 @@ func (p *ProjectService) ListProjectsByWorkspace(ctx context.Context, input List
 		return []Project{}, common.ErrInvalidWorkspaceID
 	}
 
-	page := input.Page
-	if page < 1 {
-		page = 1
-	}
+	page := max(input.Page, 1)
 	limit := input.Limit
 	if limit < 1 {
 		limit = DefaultLimit
@@ -161,6 +158,18 @@ func (p *ProjectService) ListProjectsByWorkspace(ctx context.Context, input List
 		domainProjects[i] = mapDbProjectToDomain(proj)
 	}
 	return domainProjects, nil
+}
+
+func (p *ProjectService) CountProjectsByWorkspace(ctx context.Context, workspaceID string) (int64, error) {
+	var workspaceUUID pgtype.UUID
+	if err := workspaceUUID.Scan(workspaceID); err != nil {
+		return 0, common.ErrInvalidWorkspaceID
+	}
+	count, err := p.store.CountProjectsByWorkspace(ctx, workspaceUUID)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
 }
 
 func (p *ProjectService) UpdateProject(ctx context.Context, input UpdateProjectInput) (Project, error) {
