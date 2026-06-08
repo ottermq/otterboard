@@ -2,9 +2,12 @@ package issues_test
 
 import (
 	"context"
+	"errors"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/ottermq/otterboard/src/backend/internal/common"
 	"github.com/ottermq/otterboard/src/backend/internal/db"
 	"github.com/ottermq/otterboard/src/backend/internal/issues"
 	"github.com/stretchr/testify/require"
@@ -130,4 +133,117 @@ func TestCreateIssue_Success(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, issueID.String(), issue.ID)
+}
+
+func TestCreateIssue_ValidationErrors(t *testing.T) {
+	validProjectID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
+	validUserID := mustUUID(t, "22222222-2222-2222-2222-222222222222")
+	tests := []struct {
+		name      string
+		input     issues.CreateIssueInput
+		wantError error
+	}{
+		{
+			name: "invalid project ID",
+			input: issues.CreateIssueInput{
+				ProjectID:  "invalid UUID",
+				Title:      "title",
+				Type:       "bug",
+				AssigneeID: validUserID.String(),
+				CreatedBy:  validUserID.String(),
+				DueDate:    &time.Time{},
+			},
+			wantError: common.ErrInvalidProjectID,
+		},
+		{
+			name: "invalid assignee Id",
+			input: issues.CreateIssueInput{
+				ProjectID:  validProjectID.String(),
+				Title:      "title",
+				Type:       "bug",
+				AssigneeID: "invalid assignee",
+				CreatedBy:  validUserID.String(),
+				DueDate:    &time.Time{},
+			},
+			wantError: issues.ErrInvalidAssigneeID,
+		},
+		{
+			name: "invalid user Id",
+			input: issues.CreateIssueInput{
+				ProjectID:  validProjectID.String(),
+				Title:      "title",
+				Type:       "bug",
+				AssigneeID: validUserID.String(),
+				CreatedBy:  "invalid user ID",
+				DueDate:    &time.Time{},
+			},
+			wantError: common.ErrInvalidUserID,
+		},
+		{
+			name: "invalid title",
+			input: issues.CreateIssueInput{
+				ProjectID:  validProjectID.String(),
+				Title:      "",
+				Type:       "bug",
+				AssigneeID: validUserID.String(),
+				CreatedBy:  validUserID.String(),
+				DueDate:    &time.Time{},
+			},
+			wantError: issues.ErrInvalidTitle,
+		},
+		{
+			name: "invalid issue type",
+			input: issues.CreateIssueInput{
+				ProjectID:  validProjectID.String(),
+				Title:      "title",
+				Type:       "",
+				AssigneeID: validUserID.String(),
+				CreatedBy:  validUserID.String(),
+				DueDate:    &time.Time{},
+			},
+			wantError: issues.ErrInvalidType,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			store := &mockIssueStore{
+				createIssueFn: func(ctx context.Context, arg db.CreateIssueParams) (db.Issue, error) {
+					t.Fatal("CreateIssue should not be called with invalid input")
+					return db.Issue{}, nil
+				},
+			}
+
+			service := issues.NewIssueService(store)
+			got, err := service.CreateIssue(context.Background(), tt.input)
+			require.ErrorIs(t, err, tt.wantError)
+			require.Equal(t, issues.Issue{}, got)
+		})
+	}
+}
+
+func TestCreateIssue_StoreError(t *testing.T) {
+	projectID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
+	userID := mustUUID(t, "33333333-3333-3333-3333-333333333333")
+	expectedErr := errors.New("generic storage error")
+	store := &mockIssueStore{
+		getMaxPositionByProjectAndStatusFn: func(ctx context.Context, arg db.GetMaxPositionByProjectAndStatusParams) (any, error) {
+			return float64(0.0), nil
+		},
+		createIssueFn: func(ctx context.Context, arg db.CreateIssueParams) (db.Issue, error) {
+			return db.Issue{}, expectedErr
+		},
+	}
+	service := issues.NewIssueService(store)
+	issue, err := service.CreateIssue(context.Background(), issues.CreateIssueInput{
+		ProjectID:  projectID.String(),
+		Title:      "Test Issue",
+		Overview:   "This is a test",
+		Type:       "bug",
+		AssigneeID: userID.String(),
+		CreatedBy:  userID.String(),
+		DueDate:    nil,
+	})
+	require.ErrorIs(t, err, expectedErr)
+	require.Equal(t, issues.Issue{}, issue)
 }
