@@ -19,7 +19,6 @@ const (
 
 var (
 	ErrProjectNotFound    = common.NewAppError(http.StatusNotFound, "project not found")
-	ErrInvalidProjectID   = common.NewAppError(http.StatusBadRequest, "invalid project ID")
 	ErrInvalidProjectName = common.NewAppError(http.StatusBadRequest, "project name is required")
 )
 
@@ -108,7 +107,7 @@ func (p *ProjectService) CreateProject(ctx context.Context, input CreateProjectI
 func (p *ProjectService) GetProjectByID(ctx context.Context, input GetProjectByIdInput) (Project, error) {
 	var projectID pgtype.UUID
 	if err := projectID.Scan(input.ID); err != nil {
-		return Project{}, ErrInvalidProjectID
+		return Project{}, common.ErrInvalidProjectID
 	}
 
 	var workspaceID pgtype.UUID
@@ -180,7 +179,7 @@ func (p *ProjectService) UpdateProject(ctx context.Context, input UpdateProjectI
 
 	var id pgtype.UUID
 	if err := id.Scan(input.ID); err != nil {
-		return Project{}, ErrInvalidProjectID
+		return Project{}, common.ErrInvalidProjectID
 	}
 
 	if input.Name == "" {
@@ -217,7 +216,7 @@ func (p *ProjectService) DeleteProject(ctx context.Context, input DeleteProjectI
 
 	var id pgtype.UUID
 	if err := id.Scan(input.ID); err != nil {
-		return ErrInvalidProjectID
+		return common.ErrInvalidProjectID
 	}
 
 	err := p.store.DeleteProject(ctx, db.DeleteProjectParams{

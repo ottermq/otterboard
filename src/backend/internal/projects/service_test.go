@@ -213,7 +213,7 @@ func TestGetProjectByID_ValidationErrors(t *testing.T) {
 				WorkspaceID: validWorkspaceID.String(),
 				ID:          "invalid UUID",
 			},
-			wantError: projects.ErrInvalidProjectID,
+			wantError: common.ErrInvalidProjectID,
 		},
 	}
 
@@ -553,7 +553,7 @@ func TestUpdateProject_ValidationErrors(t *testing.T) {
 				ID:          "invalid UUID",
 				Name:        validName,
 			},
-			wantError: projects.ErrInvalidProjectID,
+			wantError: common.ErrInvalidProjectID,
 		},
 		{
 			name: "empty project name",
@@ -668,7 +668,7 @@ func TestDeleteProject_ValidationErrors(t *testing.T) {
 				WorkspaceID: validWorkspaceID.String(),
 				ID:          "invalid UUID",
 			},
-			wantError: projects.ErrInvalidProjectID,
+			wantError: common.ErrInvalidProjectID,
 		},
 	}
 
