@@ -23,6 +23,8 @@ var (
 
 const (
 	DefaultIssueStatus = "backlog"
+	DefaultLimit       = 20
+	MaxLimit           = 100
 )
 
 type Issue struct {
@@ -95,6 +97,12 @@ type GetIssueByIdInput struct {
 type GetMaxPositionByProjectAndStatusInput struct {
 	ProjectID string
 	Status    string
+}
+
+type ListIssuesByProjectInput struct {
+	ProjectID string
+	Page      int32
+	Limit     int32
 }
 
 type IssueService struct {
@@ -206,6 +214,36 @@ func (i *IssueService) GetIssueByID(ctx context.Context, input GetIssueByIdInput
 		return Issue{}, err
 	}
 	return mapToIssueDomain(issue), nil
+}
+
+func (i *IssueService) ListIssuesByProject(ctx context.Context, input ListIssuesByProjectInput) ([]Issue, error) {
+	var projectUUID pgtype.UUID
+	if err := projectUUID.Scan(input.ProjectID); err != nil {
+		return []Issue{}, common.ErrInvalidProjectID
+	}
+
+	page := max(input.Page, 1)
+	limit := input.Limit
+	if limit < 1 {
+		limit = DefaultLimit
+	} else if limit > MaxLimit {
+		limit = MaxLimit
+	}
+	offset := (page - 1) * limit
+
+	issues, err := i.store.ListIssuesByProject(ctx, db.ListIssuesByProjectParams{
+		ProjectID: projectUUID,
+		Limit:     limit,
+		Offset:    offset,
+	})
+	if err != nil {
+		return []Issue{}, err
+	}
+	domainIssues := make([]Issue, len(issues))
+	for idx, issue := range issues {
+		domainIssues[idx] = mapToIssueDomain(issue)
+	}
+	return domainIssues, nil
 }
 
 func dueDateToPgDate(dueDate *time.Time) pgtype.Date {

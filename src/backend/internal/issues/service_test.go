@@ -249,7 +249,7 @@ func TestCreateIssue_StoreError(t *testing.T) {
 	require.Equal(t, issues.Issue{}, issue)
 }
 
-func TestGetIssueById_Success(t *testing.T) {
+func TestGetIssueByID_Success(t *testing.T) {
 	projectID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
 	issueID := mustUUID(t, "22222222-2222-2222-2222-222222222222")
 
@@ -271,7 +271,7 @@ func TestGetIssueById_Success(t *testing.T) {
 	require.Equal(t, projectID.String(), got.ProjectID)
 }
 
-func TestGetIssueById_ValidationErrors(t *testing.T) {
+func TestGetIssueByID_ValidationErrors(t *testing.T) {
 	validProjectID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
 	validIssueID := mustUUID(t, "22222222-2222-2222-2222-222222222222")
 	tests := []struct {
@@ -313,7 +313,7 @@ func TestGetIssueById_ValidationErrors(t *testing.T) {
 	}
 }
 
-func TestGetIssueById_NotFound(t *testing.T) {
+func TestGetIssueByID_NotFound(t *testing.T) {
 	issueID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
 	projectID := mustUUID(t, "22222222-2222-2222-2222-222222222222")
 
@@ -331,7 +331,7 @@ func TestGetIssueById_NotFound(t *testing.T) {
 	require.Equal(t, issues.Issue{}, got)
 }
 
-func TestGetIssueById_StoreError(t *testing.T) {
+func TestGetIssueByID_StoreError(t *testing.T) {
 	issueID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
 	projectID := mustUUID(t, "22222222-2222-2222-2222-222222222222")
 	expectedErr := errors.New("generic error")
@@ -348,4 +348,135 @@ func TestGetIssueById_StoreError(t *testing.T) {
 	})
 	require.ErrorIs(t, err, expectedErr)
 	require.Equal(t, issues.Issue{}, got)
+}
+
+func TestListIssuesByProject_Success(t *testing.T) {
+	projectID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
+	issueID := mustUUID(t, "22222222-2222-2222-2222-222222222222")
+
+	store := &mockIssueStore{
+		listIssuesByProjectFn: func(ctx context.Context, arg db.ListIssuesByProjectParams) ([]db.Issue, error) {
+			return []db.Issue{{
+				ID:        issueID,
+				ProjectID: projectID,
+			}}, nil
+		},
+	}
+	service := issues.NewIssueService(store)
+	got, err := service.ListIssuesByProject(context.Background(), issues.ListIssuesByProjectInput{
+		ProjectID: projectID.String(),
+		Page:      1,
+		Limit:     1,
+	})
+	require.NoError(t, err)
+	require.Equal(t, issueID.String(), got[0].ID)
+}
+
+func TestListIssuesByProject_InvalidProjectID(t *testing.T) {
+	store := &mockIssueStore{
+		listIssuesByProjectFn: func(ctx context.Context, arg db.ListIssuesByProjectParams) ([]db.Issue, error) {
+			t.Fatal("ListIssuesByProject should not be called with invalid input")
+			return []db.Issue{}, nil
+		},
+	}
+	service := issues.NewIssueService(store)
+	got, err := service.ListIssuesByProject(context.Background(), issues.ListIssuesByProjectInput{
+		ProjectID: "invalid UUID",
+		Page:      1,
+		Limit:     1,
+	})
+	require.ErrorIs(t, err, common.ErrInvalidProjectID)
+	require.Equal(t, []issues.Issue{}, got)
+}
+
+func TestListIssuesByProject_StoreError(t *testing.T) {
+	expectErr := errors.New("generic error")
+	store := &mockIssueStore{
+		listIssuesByProjectFn: func(ctx context.Context, arg db.ListIssuesByProjectParams) ([]db.Issue, error) {
+			return []db.Issue{}, expectErr
+		},
+	}
+	service := issues.NewIssueService(store)
+	got, err := service.ListIssuesByProject(context.Background(), issues.ListIssuesByProjectInput{
+		ProjectID: "11111111-1111-1111-1111-111111111111",
+		Page:      1,
+		Limit:     1,
+	})
+	require.ErrorIs(t, err, expectErr)
+	require.Equal(t, []issues.Issue{}, got)
+}
+
+func TestListIssuesByProject_Pagination(t *testing.T) {
+	projectID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
+
+	tests := []struct {
+		name       string
+		page       int32
+		limit      int32
+		wantLimit  int32
+		wantOffset int32
+	}{
+		{
+			name:       "first page",
+			page:       1,
+			limit:      10,
+			wantLimit:  10,
+			wantOffset: 0,
+		},
+		{
+			name:       "second page",
+			page:       2,
+			limit:      10,
+			wantLimit:  10,
+			wantOffset: 10,
+		},
+		{
+			name:       "third page with different limit",
+			page:       3,
+			limit:      25,
+			wantLimit:  25,
+			wantOffset: 50,
+		},
+		{
+			name:       "forth page with invalid limit",
+			page:       4,
+			limit:      -1,
+			wantLimit:  issues.DefaultLimit,
+			wantOffset: 60,
+		},
+		{
+			name:       "no page with invalid limit",
+			limit:      -1,
+			wantLimit:  issues.DefaultLimit,
+			wantOffset: 0,
+		},
+		{
+			name:       "limit beyond max",
+			limit:      200,
+			wantLimit:  issues.MaxLimit,
+			wantOffset: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			store := &mockIssueStore{
+				listIssuesByProjectFn: func(ctx context.Context, arg db.ListIssuesByProjectParams) ([]db.Issue, error) {
+					require.Equal(t, projectID, arg.ProjectID)
+					require.Equal(t, tt.wantLimit, arg.Limit)
+					require.Equal(t, tt.wantOffset, arg.Offset)
+					return []db.Issue{}, nil
+				},
+			}
+
+			service := issues.NewIssueService(store)
+			got, err := service.ListIssuesByProject(context.Background(), issues.ListIssuesByProjectInput{
+				ProjectID: projectID.String(),
+				Page:      tt.page,
+				Limit:     tt.limit,
+			})
+			require.NoError(t, err)
+			require.Empty(t, got)
+		})
+	}
 }
