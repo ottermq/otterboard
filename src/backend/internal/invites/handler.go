@@ -25,7 +25,7 @@ func NewHandler(service *InviteService) *Handler {
 func (h *Handler) GenerateInvite(c *fiber.Ctx) error {
 	userID, ok := common.CurrentUserID(c)
 	if !ok {
-		return common.Unauthorized(c)
+		return common.HandlerError(c, common.ErrUnauthorized)
 	}
 	invite, err := h.service.GenerateInvite(c.Context(), GenerateInviteInput{
 		WorkspaceID: c.Params("workspaceId"),
@@ -49,7 +49,7 @@ func (h *Handler) GetInvite(c *fiber.Ctx) error {
 func (h *Handler) AcceptInvite(c *fiber.Ctx) error {
 	userID, ok := common.CurrentUserID(c)
 	if !ok {
-		return common.Unauthorized(c)
+		return common.HandlerError(c, common.ErrUnauthorized)
 	}
 	err := h.service.AcceptInvite(c.Context(), AcceptInviteInput{
 		Token:  c.Params("token"),

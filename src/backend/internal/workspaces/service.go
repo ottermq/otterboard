@@ -13,10 +13,9 @@ import (
 )
 
 var (
-	ErrWorkspaceNotFound  = common.NewAppError(http.StatusNotFound, "workspace not found")
-	ErrInvalidOwnerID     = common.NewAppError(http.StatusBadRequest, "invalid owner ID")
-	ErrInvalidMemberID    = common.NewAppError(http.StatusBadRequest, "invalid member ID")
-	ErrNotWorkspaceMember = common.NewAppError(http.StatusForbidden, "user is not a member of the workspace")
+	ErrWorkspaceNotFound = common.NewAppError(http.StatusNotFound, "workspace not found")
+	ErrInvalidOwnerID    = common.NewAppError(http.StatusBadRequest, "invalid owner ID")
+	ErrInvalidMemberID   = common.NewAppError(http.StatusBadRequest, "invalid member ID")
 )
 
 type WorkspaceStore interface {
@@ -26,7 +25,6 @@ type WorkspaceStore interface {
 	UpdateWorkspace(ctx context.Context, arg db.UpdateWorkspaceParams) (db.Workspace, error)
 	DeleteWorkspace(ctx context.Context, id pgtype.UUID) error
 	AddMember(ctx context.Context, arg db.AddMemberParams) (db.WorkspaceMember, error)
-	GetMember(ctx context.Context, arg db.GetMemberParams) (db.WorkspaceMember, error)
 }
 
 type CreateWorkspaceInput struct {
@@ -35,19 +33,16 @@ type CreateWorkspaceInput struct {
 }
 
 type GetWorkspaceByIdInput struct {
-	ID       string
-	MemberID string
+	ID string
 }
 
 type UpdateWorkspaceInput struct {
-	ID          string
-	Name        string
-	RequestorID string
+	ID   string
+	Name string
 }
 
 type DeleteWorkspaceInput struct {
-	ID          string
-	RequestorID string
+	ID string
 }
 
 type WorkspaceService struct {
@@ -77,9 +72,6 @@ func (w *WorkspaceService) CreateWorkspace(ctx context.Context, input CreateWork
 		Name:    input.Name,
 		OwnerID: ownerID,
 	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return Workspace{}, ErrWorkspaceNotFound
-	}
 	if err != nil {
 		return Workspace{}, err
 	}
@@ -99,23 +91,9 @@ func (w *WorkspaceService) GetWorkspaceByID(ctx context.Context, input GetWorksp
 	if err := workspaceID.Scan(input.ID); err != nil {
 		return Workspace{}, common.ErrInvalidWorkspaceID
 	}
-	var memberID pgtype.UUID
-	if err := memberID.Scan(input.MemberID); err != nil {
-		return Workspace{}, ErrInvalidMemberID
-	}
 	workspace, err := w.store.GetWorkspaceByID(ctx, workspaceID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Workspace{}, ErrWorkspaceNotFound
-	}
-	if err != nil {
-		return Workspace{}, err
-	}
-	_, err = w.store.GetMember(ctx, db.GetMemberParams{
-		WorkspaceID: workspaceID,
-		UserID:      memberID,
-	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return Workspace{}, ErrNotWorkspaceMember
 	}
 	if err != nil {
 		return Workspace{}, err
@@ -144,22 +122,6 @@ func (w *WorkspaceService) UpdateWorkspace(ctx context.Context, input UpdateWork
 	if err := workspaceID.Scan(input.ID); err != nil {
 		return Workspace{}, common.ErrInvalidWorkspaceID
 	}
-	var requestorID pgtype.UUID
-	if err := requestorID.Scan(input.RequestorID); err != nil {
-		return Workspace{}, common.ErrInvalidRequestorID
-	}
-
-	workspace, err := w.store.GetWorkspaceByID(ctx, workspaceID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return Workspace{}, ErrWorkspaceNotFound
-	}
-	if err != nil {
-		return Workspace{}, err
-	}
-
-	if workspace.OwnerID != requestorID {
-		return Workspace{}, common.ErrForbidden
-	}
 
 	updatedWorkspace, err := w.store.UpdateWorkspace(ctx, db.UpdateWorkspaceParams{
 		ID:   workspaceID,
@@ -179,23 +141,8 @@ func (w *WorkspaceService) DeleteWorkspace(ctx context.Context, input DeleteWork
 	if err := workspaceID.Scan(input.ID); err != nil {
 		return common.ErrInvalidWorkspaceID
 	}
-	var requestorID pgtype.UUID
-	if err := requestorID.Scan(input.RequestorID); err != nil {
-		return common.ErrInvalidRequestorID
-	}
 
-	workspace, err := w.store.GetWorkspaceByID(ctx, workspaceID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return ErrWorkspaceNotFound
-	}
-	if err != nil {
-		return err
-	}
-	if workspace.OwnerID != requestorID {
-		return common.ErrForbidden
-	}
-
-	err = w.store.DeleteWorkspace(ctx, workspaceID)
+	err := w.store.DeleteWorkspace(ctx, workspaceID)
 	if err != nil {
 		return err
 	}

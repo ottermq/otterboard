@@ -28,6 +28,40 @@ A self-hosted project management tool (Jira-like) built in Go. Designed to manag
 
 ---
 
+## Roles and Permissions
+
+Every workspace member has one of three roles: `guest`, `member`, `administrator`.
+
+The workspace creator is automatically added as `administrator`.
+
+### Permission matrix
+
+| Action | Guest | Member | Administrator |
+|--------|-------|--------|---------------|
+| GET workspace details | ✓ | ✓ | ✓ |
+| PATCH / DELETE workspace | ✗ | ✗ | ✓ |
+| GET members list | ✓ | ✓ | ✓ |
+| PATCH / DELETE member | ✗ | ✗ | ✓ |
+| POST invite | ✗ | ✗ | ✓ |
+| GET / POST / DELETE api-keys | ✗ | ✗ | ✓ |
+| GET projects | ✓ | ✓ | ✓ |
+| POST / PATCH project | ✗ | ✓ | ✓ |
+| DELETE project | ✗ | ✗ | ✓ |
+| GET issues | ✓ | ✓ | ✓ |
+| POST / PATCH issue | ✗ | ✓ | ✓ |
+| DELETE issue | ✗ | ✗ | ✓ |
+
+### Enforcement architecture
+
+Authorization is enforced at the HTTP layer via two Fiber middleware functions in `internal/middleware/`:
+
+- **`RequireWorkspaceMember`** — applied at the workspace route group level (`/workspaces/:workspaceId/*`). Verifies the authenticated user is a member of the workspace. Stores their role in `c.Locals("workspaceRole")`. Returns 403 if not a member.
+- **`RequireRole(roles ...string)`** — applied per-route or per-route-group. Reads the role from `c.Locals` and returns 403 if it is not in the allowed list.
+
+Services do not perform authorization checks. They receive no `RequestorID` and operate purely as business logic.
+
+---
+
 ## UI Structure
 
 ### Sidebar

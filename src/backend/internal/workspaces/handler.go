@@ -19,7 +19,7 @@ func NewHandler(service *WorkspaceService) *Handler {
 func (h *Handler) CreateWorkspace(c *fiber.Ctx) error {
 	userID, ok := common.CurrentUserID(c)
 	if !ok {
-		return common.Unauthorized(c)
+		return common.HandlerError(c, common.ErrUnauthorized)
 	}
 
 	var req struct {
@@ -41,14 +41,8 @@ func (h *Handler) CreateWorkspace(c *fiber.Ctx) error {
 }
 
 func (h *Handler) GetWorkspace(c *fiber.Ctx) error {
-	userID, ok := common.CurrentUserID(c)
-	if !ok {
-		return common.Unauthorized(c)
-	}
-
 	workspace, err := h.service.GetWorkspaceByID(c.Context(), GetWorkspaceByIdInput{
-		ID:       c.Params("id"),
-		MemberID: userID,
+		ID: c.Params("workspaceId"),
 	})
 	if err != nil {
 		return common.HandlerError(c, err)
@@ -59,7 +53,7 @@ func (h *Handler) GetWorkspace(c *fiber.Ctx) error {
 func (h *Handler) ListWorkspaces(c *fiber.Ctx) error {
 	userID, ok := common.CurrentUserID(c)
 	if !ok {
-		return common.Unauthorized(c)
+		return common.HandlerError(c, common.ErrUnauthorized)
 	}
 
 	workspaces, err := h.service.GetWorkspacesByMemberID(c.Context(), userID)
@@ -75,11 +69,6 @@ func (h *Handler) ListWorkspaces(c *fiber.Ctx) error {
 }
 
 func (h *Handler) UpdateWorkspace(c *fiber.Ctx) error {
-	userID, ok := common.CurrentUserID(c)
-	if !ok {
-		return common.Unauthorized(c)
-	}
-
 	var req struct {
 		Name string `json:"name"`
 	}
@@ -88,9 +77,8 @@ func (h *Handler) UpdateWorkspace(c *fiber.Ctx) error {
 	}
 
 	workspace, err := h.service.UpdateWorkspace(c.Context(), UpdateWorkspaceInput{
-		ID:          c.Params("id"),
-		Name:        req.Name,
-		RequestorID: userID,
+		ID:   c.Params("workspaceId"),
+		Name: req.Name,
 	})
 	if err != nil {
 		return common.HandlerError(c, err)
@@ -100,14 +88,8 @@ func (h *Handler) UpdateWorkspace(c *fiber.Ctx) error {
 }
 
 func (h *Handler) DeleteWorkspace(c *fiber.Ctx) error {
-	userID, ok := common.CurrentUserID(c)
-	if !ok {
-		return common.Unauthorized(c)
-	}
-
 	err := h.service.DeleteWorkspace(c.Context(), DeleteWorkspaceInput{
-		ID:          c.Params("id"),
-		RequestorID: userID,
+		ID: c.Params("workspaceId"),
 	})
 	if err != nil {
 		return common.HandlerError(c, err)

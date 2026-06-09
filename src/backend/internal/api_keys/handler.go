@@ -19,7 +19,7 @@ func NewHandler(service *ApiKeyService) *Handler {
 func (h *Handler) CreateApiKey(c *fiber.Ctx) error {
 	userID, ok := common.CurrentUserID(c)
 	if !ok {
-		return common.Unauthorized(c)
+		return common.HandlerError(c, common.ErrUnauthorized)
 	}
 
 	workspaceID := c.Params("workspaceId")
@@ -28,7 +28,7 @@ func (h *Handler) CreateApiKey(c *fiber.Ctx) error {
 		Name string `json:"name"`
 	}
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.ErrBadRequest.Code).JSON(fiber.Map{"error": "invalid request"})
+		return common.HandlerError(c, common.ErrBadRequest)
 	}
 
 	apiKey, rawKey, err := h.service.CreateApiKey(c.Context(), CreateApiKeyInput{
