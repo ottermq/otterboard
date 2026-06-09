@@ -116,9 +116,9 @@ func mapToProjectDto(project Project) dtos.ProjectDto {
 }
 
 func mapListToPaginatedResponse(projectList []Project, total int64, page, limit int32) dtos.PaginatedResponse[dtos.ProjectDto] {
-	dtoList := make([]dtos.ProjectDto, 0, len(projectList))
-	for _, project := range projectList {
-		dtoList = append(dtoList, mapToProjectDto(project))
+	dtoList := make([]dtos.ProjectDto, len(projectList))
+	for idx, project := range projectList {
+		dtoList[idx] = mapToProjectDto(project)
 	}
 	return dtos.PaginatedResponse[dtos.ProjectDto]{
 		Data:  dtoList,
