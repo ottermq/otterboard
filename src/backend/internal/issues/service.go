@@ -105,6 +105,29 @@ type ListIssuesByProjectInput struct {
 	Limit     int32
 }
 
+type ListIssuesByWorkspaceInput struct {
+	WorkspaceID string
+	Page        int32
+	Limit       int32
+}
+
+type UpdateIssueInput struct {
+	ID         string
+	ProjectID  string
+	Title      string
+	Overview   string
+	Type       string
+	Status     string
+	Position   float64
+	AssigneeID string
+	DueDate    *time.Time
+}
+
+type DeleteIssueInput struct {
+	ID        string
+	ProjectID string
+}
+
 type IssueService struct {
 	store IssueStore
 }
@@ -244,6 +267,135 @@ func (i *IssueService) ListIssuesByProject(ctx context.Context, input ListIssues
 		domainIssues[idx] = mapToIssueDomain(issue)
 	}
 	return domainIssues, nil
+}
+
+func (i *IssueService) CountIssuesByProject(ctx context.Context, projectID string) (int64, error) {
+	var projectUUID pgtype.UUID
+	if err := projectUUID.Scan(projectID); err != nil {
+		return 0, common.ErrInvalidProjectID
+	}
+
+	count, err := i.store.CountIssuesByProject(ctx, projectUUID)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+func (i *IssueService) ListIssuesByWorkspace(ctx context.Context, input ListIssuesByWorkspaceInput) ([]Issue, error) {
+	var workspaceUUID pgtype.UUID
+	if err := workspaceUUID.Scan(input.WorkspaceID); err != nil {
+		return []Issue{}, common.ErrInvalidWorkspaceID
+	}
+
+	page := max(input.Page, 1)
+	limit := input.Limit
+	if limit < 1 {
+		limit = DefaultLimit
+	} else if limit > MaxLimit {
+		limit = MaxLimit
+	}
+	offset := (page - 1) * limit
+	dbIssues, err := i.store.ListIssuesByWorkspace(ctx, db.ListIssuesByWorkspaceParams{
+		WorkspaceID: workspaceUUID,
+		Limit:       limit,
+		Offset:      offset,
+	})
+	if err != nil {
+		return []Issue{}, err
+	}
+	domainIssues := make([]Issue, len(dbIssues))
+	for idx, issue := range dbIssues {
+		domainIssues[idx] = mapToIssueDomain(issue)
+	}
+	return domainIssues, nil
+}
+
+func (i *IssueService) CountIssuesByWorkspace(ctx context.Context, workspaceID string) (int64, error) {
+	var workspaceUUID pgtype.UUID
+	if err := workspaceUUID.Scan(workspaceID); err != nil {
+		return 0, common.ErrInvalidWorkspaceID
+	}
+
+	count, err := i.store.CountIssuesByWorkspace(ctx, workspaceUUID)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+func (i *IssueService) UpdateIssue(ctx context.Context, input UpdateIssueInput) (Issue, error) {
+	var issueUUID pgtype.UUID
+	if err := issueUUID.Scan(input.ID); err != nil {
+		return Issue{}, ErrInvalidIssueID
+	}
+	var projectUUID pgtype.UUID
+	if err := projectUUID.Scan(input.ProjectID); err != nil {
+		return Issue{}, common.ErrInvalidProjectID
+	}
+	var assigneeUUID pgtype.UUID
+	if input.AssigneeID != "" {
+		if err := assigneeUUID.Scan(input.AssigneeID); err != nil {
+			return Issue{}, ErrInvalidAssigneeID
+		}
+	}
+	if input.Title == "" {
+		return Issue{}, ErrInvalidTitle
+	}
+	var overview pgtype.Text
+	if input.Overview == "" {
+		overview = pgtype.Text{Valid: false}
+	} else {
+		overview = pgtype.Text{
+			String: input.Overview,
+			Valid:  true}
+	}
+	if !IsValidType(input.Type) {
+		return Issue{}, ErrInvalidType
+	}
+	if !IsValidStatus(input.Status) {
+		return Issue{}, ErrInvalidStatus
+	}
+	position := max(input.Position, 0)
+
+	issue, err := i.store.UpdateIssue(ctx, db.UpdateIssueParams{
+		ID:         issueUUID,
+		ProjectID:  projectUUID,
+		Title:      input.Title,
+		Overview:   overview,
+		Type:       input.Type,
+		Status:     input.Status,
+		Position:   position,
+		AssigneeID: assigneeUUID,
+		DueDate:    dueDateToPgDate(input.DueDate),
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Issue{}, ErrIssueNotFound
+	}
+	if err != nil {
+		return Issue{}, err
+	}
+	return mapToIssueDomain(issue), nil
+}
+
+func (i *IssueService) DeleteIssue(ctx context.Context, input DeleteIssueInput) error {
+	var issueUUID pgtype.UUID
+	if err := issueUUID.Scan(input.ID); err != nil {
+		return ErrInvalidIssueID
+	}
+	var projectUUID pgtype.UUID
+	if err := projectUUID.Scan(input.ProjectID); err != nil {
+		return common.ErrInvalidProjectID
+	}
+
+	err := i.store.DeleteIssue(ctx, db.DeleteIssueParams{
+		ID:        issueUUID,
+		ProjectID: projectUUID,
+	})
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func dueDateToPgDate(dueDate *time.Time) pgtype.Date {

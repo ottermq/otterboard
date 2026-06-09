@@ -480,3 +480,470 @@ func TestListIssuesByProject_Pagination(t *testing.T) {
 		})
 	}
 }
+
+func TestCountIssuesByProject_Success(t *testing.T) {
+	projectID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
+	store := &mockIssueStore{
+		countIssuesByProjectFn: func(ctx context.Context, projectID pgtype.UUID) (int64, error) {
+			return 1, nil
+		},
+	}
+
+	service := issues.NewIssueService(store)
+	count, err := service.CountIssuesByProject(context.Background(), projectID.String())
+	require.NoError(t, err)
+	require.Equal(t, int64(1), count)
+}
+
+func TestCountIssuesByProject_InvalidProjectID(t *testing.T) {
+	store := &mockIssueStore{
+		countIssuesByProjectFn: func(ctx context.Context, projectID pgtype.UUID) (int64, error) {
+			t.Fatal("CountIssuesByProject should not be called with invalid input")
+			return 0, nil
+		},
+	}
+
+	service := issues.NewIssueService(store)
+	count, err := service.CountIssuesByProject(context.Background(), "invalid UUID")
+	require.ErrorIs(t, err, common.ErrInvalidProjectID)
+	require.Equal(t, int64(0), count)
+}
+
+func TestListIssuesByWorkspace_Success(t *testing.T) {
+	workspaceID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
+	projectID := mustUUID(t, "22222222-2222-2222-2222-222222222222")
+	issueID := mustUUID(t, "33333333-3333-3333-3333-333333333333")
+
+	store := &mockIssueStore{
+		listIssuesByWorkspaceFn: func(ctx context.Context, arg db.ListIssuesByWorkspaceParams) ([]db.Issue, error) {
+			return []db.Issue{
+				{
+					ID:        issueID,
+					ProjectID: projectID,
+				},
+			}, nil
+		},
+	}
+	service := issues.NewIssueService(store)
+	got, err := service.ListIssuesByWorkspace(context.Background(), issues.ListIssuesByWorkspaceInput{
+		WorkspaceID: workspaceID.String(),
+		Page:        1,
+		Limit:       1,
+	})
+	require.NoError(t, err)
+	require.Equal(t, issueID.String(), got[0].ID)
+}
+
+func TestListIssuesByWorkspace_InvalidWorkspaceID(t *testing.T) {
+
+	store := &mockIssueStore{
+		listIssuesByWorkspaceFn: func(ctx context.Context, arg db.ListIssuesByWorkspaceParams) ([]db.Issue, error) {
+			t.Fatal("ListIssuesByWorkspace should not be called with invalid input")
+			return []db.Issue{}, nil
+		},
+	}
+	service := issues.NewIssueService(store)
+	got, err := service.ListIssuesByWorkspace(context.Background(), issues.ListIssuesByWorkspaceInput{
+		WorkspaceID: "invalid UUID",
+		Page:        1,
+		Limit:       1,
+	})
+	require.ErrorIs(t, err, common.ErrInvalidWorkspaceID)
+	require.Equal(t, []issues.Issue{}, got)
+}
+
+func TestListIssuesByWorkspace_StoreError(t *testing.T) {
+	workspaceID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
+	expectedErr := errors.New("generic error")
+	store := &mockIssueStore{
+		listIssuesByWorkspaceFn: func(ctx context.Context, arg db.ListIssuesByWorkspaceParams) ([]db.Issue, error) {
+			return []db.Issue{}, expectedErr
+		},
+	}
+	service := issues.NewIssueService(store)
+	got, err := service.ListIssuesByWorkspace(context.Background(), issues.ListIssuesByWorkspaceInput{
+		WorkspaceID: workspaceID.String(),
+		Page:        1,
+		Limit:       1,
+	})
+	require.ErrorIs(t, err, expectedErr)
+	require.Equal(t, []issues.Issue{}, got)
+}
+
+func TestListIssuesByWorkspace_Pagination(t *testing.T) {
+	workspaceID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
+
+	tests := []struct {
+		name       string
+		page       int32
+		limit      int32
+		wantLimit  int32
+		wantOffset int32
+	}{
+		{
+			name:       "first page",
+			page:       1,
+			limit:      10,
+			wantLimit:  10,
+			wantOffset: 0,
+		},
+		{
+			name:       "second page",
+			page:       2,
+			limit:      10,
+			wantLimit:  10,
+			wantOffset: 10,
+		},
+		{
+			name:       "third page with different limit",
+			page:       3,
+			limit:      25,
+			wantLimit:  25,
+			wantOffset: 50,
+		},
+		{
+			name:       "forth page with invalid limit",
+			page:       4,
+			limit:      -1,
+			wantLimit:  issues.DefaultLimit,
+			wantOffset: 60,
+		},
+		{
+			name:       "no page with invalid limit",
+			limit:      -1,
+			wantLimit:  issues.DefaultLimit,
+			wantOffset: 0,
+		},
+		{
+			name:       "limit beyond max",
+			limit:      200,
+			wantLimit:  issues.MaxLimit,
+			wantOffset: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			store := &mockIssueStore{
+				listIssuesByWorkspaceFn: func(ctx context.Context, arg db.ListIssuesByWorkspaceParams) ([]db.Issue, error) {
+					require.Equal(t, workspaceID, arg.WorkspaceID)
+					require.Equal(t, tt.wantLimit, arg.Limit)
+					require.Equal(t, tt.wantOffset, arg.Offset)
+					return []db.Issue{}, nil
+				},
+			}
+
+			service := issues.NewIssueService(store)
+			got, err := service.ListIssuesByWorkspace(context.Background(), issues.ListIssuesByWorkspaceInput{
+				WorkspaceID: workspaceID.String(),
+				Page:        tt.page,
+				Limit:       tt.limit,
+			})
+			require.NoError(t, err)
+			require.Empty(t, got)
+		})
+	}
+}
+
+func TestCountIssuesByWorkspace_Success(t *testing.T) {
+	workspaceUUID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
+
+	store := &mockIssueStore{
+		countIssuesByWorkspaceFn: func(ctx context.Context, workspaceID pgtype.UUID) (int64, error) {
+			return 1, nil
+		},
+	}
+
+	service := issues.NewIssueService(store)
+	count, err := service.CountIssuesByWorkspace(context.Background(), workspaceUUID.String())
+	require.NoError(t, err)
+	require.Equal(t, int64(1), count)
+}
+
+func TestCountIssuesByWorkspace_InvalidWorkspaceID(t *testing.T) {
+	store := &mockIssueStore{
+		countIssuesByWorkspaceFn: func(ctx context.Context, workspaceID pgtype.UUID) (int64, error) {
+			t.Fatal("CountIssuesByWorkspace should not be called with invalid input")
+			return 0, nil
+		},
+	}
+
+	service := issues.NewIssueService(store)
+	count, err := service.CountIssuesByWorkspace(context.Background(), "invalid UUID")
+	require.ErrorIs(t, err, common.ErrInvalidWorkspaceID)
+	require.Equal(t, int64(0), count)
+}
+
+func TestUpdateIssue_Success(t *testing.T) {
+	projectID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
+	issueID := mustUUID(t, "22222222-2222-2222-2222-222222222222")
+	userID := mustUUID(t, "33333333-3333-3333-3333-333333333333")
+	store := &mockIssueStore{
+		updateIssueFn: func(ctx context.Context, arg db.UpdateIssueParams) (db.Issue, error) {
+			return db.Issue{
+				ID:         issueID,
+				ProjectID:  arg.ProjectID,
+				Title:      arg.Title,
+				Overview:   arg.Overview,
+				Type:       arg.Type,
+				Status:     arg.Status,
+				Position:   arg.Position,
+				AssigneeID: arg.AssigneeID,
+				CreatedBy:  userID,
+				DueDate:    arg.DueDate,
+				CreatedAt:  pgtype.Timestamptz{},
+				UpdatedAt:  pgtype.Timestamptz{},
+			}, nil
+		},
+	}
+	service := issues.NewIssueService(store)
+	_, err := service.UpdateIssue(context.Background(), issues.UpdateIssueInput{
+		ID:         issueID.String(),
+		ProjectID:  projectID.String(),
+		Title:      "Test Issue",
+		Overview:   "This is a test",
+		Type:       "bug",
+		Status:     "backlog",
+		Position:   float64(1000),
+		AssigneeID: userID.String(),
+		DueDate:    nil,
+	})
+	require.NoError(t, err)
+}
+
+func TestUpdateIssue_ValidationErrors(t *testing.T) {
+	validProjectID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
+	validUserID := mustUUID(t, "22222222-2222-2222-2222-222222222222")
+	validIssueID := mustUUID(t, "33333333-3333-3333-3333-333333333333")
+	tests := []struct {
+		name      string
+		input     issues.UpdateIssueInput
+		wantError error
+	}{
+		{
+			name: "invalid issue ID",
+			input: issues.UpdateIssueInput{
+				ID:         "invalid UUID",
+				ProjectID:  validProjectID.String(),
+				Title:      "title",
+				Type:       "bug",
+				Status:     "backlog",
+				Position:   float64(1000),
+				AssigneeID: validUserID.String(),
+				DueDate:    &time.Time{},
+			},
+			wantError: issues.ErrInvalidIssueID,
+		},
+		{
+			name: "invalid project ID",
+			input: issues.UpdateIssueInput{
+				ID:         validIssueID.String(),
+				ProjectID:  "invalid UUID",
+				Title:      "title",
+				Type:       "bug",
+				Status:     "backlog",
+				Position:   float64(1000),
+				AssigneeID: validUserID.String(),
+				DueDate:    &time.Time{},
+			},
+			wantError: common.ErrInvalidProjectID,
+		},
+		{
+			name: "invalid assignee Id",
+			input: issues.UpdateIssueInput{
+				ID:         validIssueID.String(),
+				ProjectID:  validProjectID.String(),
+				Title:      "title",
+				Type:       "bug",
+				Status:     "backlog",
+				Position:   float64(1000),
+				AssigneeID: "invalid UUID",
+				DueDate:    &time.Time{},
+			},
+			wantError: issues.ErrInvalidAssigneeID,
+		},
+		{
+			name: "invalid title",
+			input: issues.UpdateIssueInput{
+				ID:         validIssueID.String(),
+				ProjectID:  validProjectID.String(),
+				Title:      "",
+				Type:       "bug",
+				Status:     "backlog",
+				Position:   float64(1000),
+				AssigneeID: validUserID.String(),
+				DueDate:    &time.Time{},
+			},
+			wantError: issues.ErrInvalidTitle,
+		},
+		{
+			name: "invalid issue type",
+			input: issues.UpdateIssueInput{
+				ID:         validIssueID.String(),
+				ProjectID:  validProjectID.String(),
+				Title:      "title",
+				Type:       "invalid",
+				Status:     "backlog",
+				Position:   float64(1000),
+				AssigneeID: validUserID.String(),
+				DueDate:    &time.Time{},
+			},
+			wantError: issues.ErrInvalidType,
+		},
+		{
+			name: "invalid issue status",
+			input: issues.UpdateIssueInput{
+				ID:         validIssueID.String(),
+				ProjectID:  validProjectID.String(),
+				Title:      "title",
+				Type:       "bug",
+				Status:     "invalid",
+				Position:   float64(1000),
+				AssigneeID: validUserID.String(),
+				DueDate:    &time.Time{},
+			},
+			wantError: issues.ErrInvalidStatus,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			store := &mockIssueStore{
+				updateIssueFn: func(ctx context.Context, arg db.UpdateIssueParams) (db.Issue, error) {
+					t.Fatal("UpdateIssue should not be called with invalid input")
+					return db.Issue{}, nil
+				},
+			}
+
+			service := issues.NewIssueService(store)
+			got, err := service.UpdateIssue(context.Background(), tt.input)
+			require.ErrorIs(t, err, tt.wantError)
+			require.Equal(t, issues.Issue{}, got)
+		})
+	}
+}
+
+func TestUpdateIssue_PositionLessThanZero(t *testing.T) {
+	projectID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
+	issueID := mustUUID(t, "22222222-2222-2222-2222-222222222222")
+	userID := mustUUID(t, "33333333-3333-3333-3333-333333333333")
+	store := &mockIssueStore{
+		updateIssueFn: func(ctx context.Context, arg db.UpdateIssueParams) (db.Issue, error) {
+			return db.Issue{
+				ID:         issueID,
+				ProjectID:  arg.ProjectID,
+				Title:      arg.Title,
+				Overview:   arg.Overview,
+				Type:       arg.Type,
+				Status:     arg.Status,
+				Position:   arg.Position,
+				AssigneeID: arg.AssigneeID,
+				CreatedBy:  userID,
+				DueDate:    arg.DueDate,
+				CreatedAt:  pgtype.Timestamptz{},
+				UpdatedAt:  pgtype.Timestamptz{},
+			}, nil
+		},
+	}
+	service := issues.NewIssueService(store)
+	got, err := service.UpdateIssue(context.Background(), issues.UpdateIssueInput{
+		ID:         issueID.String(),
+		ProjectID:  projectID.String(),
+		Title:      "Test Issue",
+		Overview:   "This is a test",
+		Type:       "bug",
+		Status:     "backlog",
+		Position:   float64(-1),
+		AssigneeID: userID.String(),
+		DueDate:    nil,
+	})
+	require.NoError(t, err)
+	require.Equal(t, float64(0), got.Position)
+}
+
+func TestUpdateIssue_NotFound(t *testing.T) {
+	projectID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
+	issueID := mustUUID(t, "22222222-2222-2222-2222-222222222222")
+	userID := mustUUID(t, "33333333-3333-3333-3333-333333333333")
+
+	store := &mockIssueStore{
+		updateIssueFn: func(ctx context.Context, arg db.UpdateIssueParams) (db.Issue, error) {
+			return db.Issue{}, pgx.ErrNoRows
+		},
+	}
+	service := issues.NewIssueService(store)
+	_, err := service.UpdateIssue(context.Background(), issues.UpdateIssueInput{
+		ID:         issueID.String(),
+		ProjectID:  projectID.String(),
+		Title:      "Test Issue",
+		Overview:   "This is a test",
+		Type:       "bug",
+		Status:     "backlog",
+		Position:   float64(1000),
+		AssigneeID: userID.String(),
+		DueDate:    nil,
+	})
+	require.ErrorIs(t, err, issues.ErrIssueNotFound)
+}
+
+func TestUpdateIssue_StoreError(t *testing.T) {
+	projectID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
+	issueID := mustUUID(t, "22222222-2222-2222-2222-222222222222")
+	userID := mustUUID(t, "33333333-3333-3333-3333-333333333333")
+	expectedErr := errors.New("generic error")
+	store := &mockIssueStore{
+		updateIssueFn: func(ctx context.Context, arg db.UpdateIssueParams) (db.Issue, error) {
+			return db.Issue{}, expectedErr
+		},
+	}
+	service := issues.NewIssueService(store)
+	_, err := service.UpdateIssue(context.Background(), issues.UpdateIssueInput{
+		ID:         issueID.String(),
+		ProjectID:  projectID.String(),
+		Title:      "Test Issue",
+		Overview:   "This is a test",
+		Type:       "bug",
+		Status:     "backlog",
+		Position:   float64(1000),
+		AssigneeID: userID.String(),
+		DueDate:    nil,
+	})
+	require.ErrorIs(t, err, expectedErr)
+}
+
+func TestDeleteIssue_Success(t *testing.T) {
+	projectID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
+	issueID := mustUUID(t, "22222222-2222-2222-2222-222222222222")
+
+	store := &mockIssueStore{
+		deleteIssueFn: func(ctx context.Context, arg db.DeleteIssueParams) error {
+			require.Equal(t, issueID, arg.ID)
+			require.Equal(t, projectID, arg.ProjectID)
+			return nil
+		},
+	}
+	service := issues.NewIssueService(store)
+	err := service.DeleteIssue(context.Background(), issues.DeleteIssueInput{
+		ID:        issueID.String(),
+		ProjectID: projectID.String(),
+	})
+	require.NoError(t, err)
+}
+
+func TestDeleteIssue_StoreError(t *testing.T) {
+	projectID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
+	issueID := mustUUID(t, "22222222-2222-2222-2222-222222222222")
+	expectedErr := errors.New("generic error")
+
+	store := &mockIssueStore{
+		deleteIssueFn: func(ctx context.Context, arg db.DeleteIssueParams) error {
+			return expectedErr
+		},
+	}
+	service := issues.NewIssueService(store)
+	err := service.DeleteIssue(context.Background(), issues.DeleteIssueInput{
+		ID:        issueID.String(),
+		ProjectID: projectID.String(),
+	})
+	require.ErrorIs(t, err, expectedErr)
+}
