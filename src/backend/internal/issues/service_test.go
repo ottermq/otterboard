@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/ottermq/otterboard/src/backend/internal/common"
 	"github.com/ottermq/otterboard/src/backend/internal/db"
@@ -246,4 +247,105 @@ func TestCreateIssue_StoreError(t *testing.T) {
 	})
 	require.ErrorIs(t, err, expectedErr)
 	require.Equal(t, issues.Issue{}, issue)
+}
+
+func TestGetIssueById_Success(t *testing.T) {
+	projectID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
+	issueID := mustUUID(t, "22222222-2222-2222-2222-222222222222")
+
+	store := &mockIssueStore{
+		getIssueByIDFn: func(ctx context.Context, arg db.GetIssueByIDParams) (db.Issue, error) {
+			return db.Issue{
+				ID:        issueID,
+				ProjectID: projectID,
+			}, nil
+		},
+	}
+	service := issues.NewIssueService(store)
+	got, err := service.GetIssueByID(context.Background(), issues.GetIssueByIdInput{
+		ID:        issueID.String(),
+		ProjectID: projectID.String(),
+	})
+	require.NoError(t, err)
+	require.Equal(t, issueID.String(), got.ID)
+	require.Equal(t, projectID.String(), got.ProjectID)
+}
+
+func TestGetIssueById_ValidationErrors(t *testing.T) {
+	validProjectID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
+	validIssueID := mustUUID(t, "22222222-2222-2222-2222-222222222222")
+	tests := []struct {
+		name    string
+		input   issues.GetIssueByIdInput
+		wantErr error
+	}{
+		{
+			name: "invalid issue ID",
+			input: issues.GetIssueByIdInput{
+				ID:        "invalid UUID",
+				ProjectID: validProjectID.String(),
+			},
+			wantErr: issues.ErrInvalidIssueID,
+		},
+		{
+			name: "invalid project ID",
+			input: issues.GetIssueByIdInput{
+				ID:        validIssueID.String(),
+				ProjectID: "invalid UUID",
+			},
+			wantErr: common.ErrInvalidProjectID,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			store := &mockIssueStore{
+				getIssueByIDFn: func(ctx context.Context, arg db.GetIssueByIDParams) (db.Issue, error) {
+					t.Fatal("GetIssueById should not be called with invalid params")
+					return db.Issue{}, nil
+				},
+			}
+
+			service := issues.NewIssueService(store)
+			got, err := service.GetIssueByID(context.Background(), tt.input)
+			require.ErrorIs(t, err, tt.wantErr)
+			require.Equal(t, issues.Issue{}, got)
+		})
+	}
+}
+
+func TestGetIssueById_NotFound(t *testing.T) {
+	issueID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
+	projectID := mustUUID(t, "22222222-2222-2222-2222-222222222222")
+
+	store := &mockIssueStore{
+		getIssueByIDFn: func(ctx context.Context, arg db.GetIssueByIDParams) (db.Issue, error) {
+			return db.Issue{}, pgx.ErrNoRows
+		},
+	}
+	service := issues.NewIssueService(store)
+	got, err := service.GetIssueByID(context.Background(), issues.GetIssueByIdInput{
+		ID:        issueID.String(),
+		ProjectID: projectID.String(),
+	})
+	require.ErrorIs(t, err, issues.ErrIssueNotFound)
+	require.Equal(t, issues.Issue{}, got)
+}
+
+func TestGetIssueById_StoreError(t *testing.T) {
+	issueID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
+	projectID := mustUUID(t, "22222222-2222-2222-2222-222222222222")
+	expectedErr := errors.New("generic error")
+
+	store := &mockIssueStore{
+		getIssueByIDFn: func(ctx context.Context, arg db.GetIssueByIDParams) (db.Issue, error) {
+			return db.Issue{}, expectedErr
+		},
+	}
+	service := issues.NewIssueService(store)
+	got, err := service.GetIssueByID(context.Background(), issues.GetIssueByIdInput{
+		ID:        issueID.String(),
+		ProjectID: projectID.String(),
+	})
+	require.ErrorIs(t, err, expectedErr)
+	require.Equal(t, issues.Issue{}, got)
 }

@@ -2,9 +2,11 @@ package issues
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/ottermq/otterboard/src/backend/internal/common"
 	"github.com/ottermq/otterboard/src/backend/internal/db"
@@ -15,6 +17,8 @@ var (
 	ErrInvalidType       = common.NewAppError(http.StatusBadRequest, "invalid issue type")
 	ErrInvalidStatus     = common.NewAppError(http.StatusBadRequest, "invalid issue status")
 	ErrInvalidAssigneeID = common.NewAppError(http.StatusBadRequest, "invalid assignee ID")
+	ErrInvalidIssueID    = common.NewAppError(http.StatusBadRequest, "invalid issue ID")
+	ErrIssueNotFound     = common.NewAppError(http.StatusNotFound, "issue not found")
 )
 
 const (
@@ -81,6 +85,11 @@ type CreateIssueInput struct {
 	AssigneeID string
 	CreatedBy  string
 	DueDate    *time.Time
+}
+
+type GetIssueByIdInput struct {
+	ID        string
+	ProjectID string
 }
 
 type GetMaxPositionByProjectAndStatusInput struct {
@@ -173,6 +182,30 @@ func (i *IssueService) getMaxPositionByProjectAndStatus(ctx context.Context, pro
 	}
 	maxPos, _ := raw.(float64)
 	return maxPos, nil
+}
+
+func (i *IssueService) GetIssueByID(ctx context.Context, input GetIssueByIdInput) (Issue, error) {
+	var issueUUID pgtype.UUID
+	if err := issueUUID.Scan(input.ID); err != nil {
+		return Issue{}, ErrInvalidIssueID
+	}
+
+	var projectID pgtype.UUID
+	if err := projectID.Scan(input.ProjectID); err != nil {
+		return Issue{}, common.ErrInvalidProjectID
+	}
+
+	issue, err := i.store.GetIssueByID(ctx, db.GetIssueByIDParams{
+		ID:        issueUUID,
+		ProjectID: projectID,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Issue{}, ErrIssueNotFound
+	}
+	if err != nil {
+		return Issue{}, err
+	}
+	return mapToIssueDomain(issue), nil
 }
 
 func dueDateToPgDate(dueDate *time.Time) pgtype.Date {
