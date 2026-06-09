@@ -15,6 +15,7 @@ import (
 	"github.com/ottermq/otterboard/src/backend/internal/config"
 	"github.com/ottermq/otterboard/src/backend/internal/db"
 	"github.com/ottermq/otterboard/src/backend/internal/invites"
+	"github.com/ottermq/otterboard/src/backend/internal/issues"
 	"github.com/ottermq/otterboard/src/backend/internal/members"
 	"github.com/ottermq/otterboard/src/backend/internal/middleware"
 	"github.com/ottermq/otterboard/src/backend/internal/projects"
@@ -66,6 +67,10 @@ func main() {
 	projectService := projects.NewProjectService(queries)
 	projectHandler := projects.NewHandler(projectService)
 	projects.RegisterProjectRoutes(wsGroup, projectHandler)
+
+	issueService := issues.NewIssueService(queries)
+	issueHandler := issues.NewHandler(issueService)
+	issues.RegisterIssueRoutes(wsGroup, issueHandler)
 
 	log.Fatal(app.Listen(fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)))
 }
