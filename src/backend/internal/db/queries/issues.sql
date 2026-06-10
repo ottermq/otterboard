@@ -22,6 +22,8 @@ WHERE project_id = @project_id
 ORDER BY
     CASE WHEN @sort_by::text = 'title'              AND @sort_order::text = 'asc'       THEN title              END ASC       NULLS LAST,
     CASE WHEN @sort_by::text = 'title'              AND @sort_order::text = 'desc'     THEN title              END DESC     NULLS LAST,
+    CASE WHEN @sort_by::text = 'type'             AND @sort_order::text = 'asc'       THEN type             END ASC       NULLS LAST,
+    CASE WHEN @sort_by::text = 'type'             AND @sort_order::text = 'desc'     THEN type             END DESC     NULLS LAST,
     CASE WHEN @sort_by::text = 'status'          AND @sort_order::text = 'asc'       THEN status          END ASC       NULLS LAST,
     CASE WHEN @sort_by::text = 'status'          AND @sort_order::text = 'desc'     THEN status          END DESC     NULLS LAST,
     CASE WHEN @sort_by::text = 'due_date'     AND @sort_order::text = 'asc'       THEN due_date     END ASC       NULLS LAST,
@@ -51,8 +53,10 @@ WHERE projects.workspace_id = @workspace_id
     AND (@due_before::date      IS NULL OR issues.due_date <= @due_before)
     AND (@due_after::date         IS NULL OR issues.due_date >= @due_after)
 ORDER BY
-    CASE WHEN @sort_by::text = 'title'              AND @sort_order::text = 'asc'       THEN issues.title              END ASC       NULLS LAST,
-    CASE WHEN @sort_by::text = 'title'              AND @sort_order::text = 'desc'     THEN issues.title              END DESC     NULLS LAST,
+   CASE WHEN @sort_by::text = 'title'              AND @sort_order::text = 'asc'       THEN issues.title              END ASC       NULLS LAST,
+    CASE WHEN @sort_by::text = 'title'             AND @sort_order::text = 'desc'     THEN issues.title              END DESC     NULLS LAST,
+    CASE WHEN @sort_by::text = 'type'            AND @sort_order::text = 'asc'       THEN issues.type              END ASC       NULLS LAST,
+    CASE WHEN @sort_by::text = 'type'            AND @sort_order::text = 'desc'     THEN issues.type              END DESC     NULLS LAST,
     CASE WHEN @sort_by::text = 'status'          AND @sort_order::text = 'asc'       THEN issues.status          END ASC       NULLS LAST,
     CASE WHEN @sort_by::text = 'status'          AND @sort_order::text = 'desc'     THEN issues.status          END DESC     NULLS LAST,
     CASE WHEN @sort_by::text = 'due_date'     AND @sort_order::text = 'asc'       THEN issues.due_date     END ASC       NULLS LAST,

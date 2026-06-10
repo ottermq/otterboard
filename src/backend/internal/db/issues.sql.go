@@ -202,6 +202,8 @@ WHERE project_id = $1
 ORDER BY
     CASE WHEN $7::text = 'title'              AND $8::text = 'asc'       THEN title              END ASC       NULLS LAST,
     CASE WHEN $7::text = 'title'              AND $8::text = 'desc'     THEN title              END DESC     NULLS LAST,
+    CASE WHEN $7::text = 'type'             AND $8::text = 'asc'       THEN type             END ASC       NULLS LAST,
+    CASE WHEN $7::text = 'type'             AND $8::text = 'desc'     THEN type             END DESC     NULLS LAST,
     CASE WHEN $7::text = 'status'          AND $8::text = 'asc'       THEN status          END ASC       NULLS LAST,
     CASE WHEN $7::text = 'status'          AND $8::text = 'desc'     THEN status          END DESC     NULLS LAST,
     CASE WHEN $7::text = 'due_date'     AND $8::text = 'asc'       THEN due_date     END ASC       NULLS LAST,
@@ -280,8 +282,10 @@ WHERE projects.workspace_id = $1
     AND ($6::date      IS NULL OR issues.due_date <= $6)
     AND ($7::date         IS NULL OR issues.due_date >= $7)
 ORDER BY
-    CASE WHEN $8::text = 'title'              AND $9::text = 'asc'       THEN issues.title              END ASC       NULLS LAST,
-    CASE WHEN $8::text = 'title'              AND $9::text = 'desc'     THEN issues.title              END DESC     NULLS LAST,
+   CASE WHEN $8::text = 'title'              AND $9::text = 'asc'       THEN issues.title              END ASC       NULLS LAST,
+    CASE WHEN $8::text = 'title'             AND $9::text = 'desc'     THEN issues.title              END DESC     NULLS LAST,
+    CASE WHEN $8::text = 'type'            AND $9::text = 'asc'       THEN issues.type              END ASC       NULLS LAST,
+    CASE WHEN $8::text = 'type'            AND $9::text = 'desc'     THEN issues.type              END DESC     NULLS LAST,
     CASE WHEN $8::text = 'status'          AND $9::text = 'asc'       THEN issues.status          END ASC       NULLS LAST,
     CASE WHEN $8::text = 'status'          AND $9::text = 'desc'     THEN issues.status          END DESC     NULLS LAST,
     CASE WHEN $8::text = 'due_date'     AND $9::text = 'asc'       THEN issues.due_date     END ASC       NULLS LAST,

@@ -69,6 +69,7 @@ func IsValidStatus(s string) bool {
 
 var validSortFields = map[string]struct{}{
 	"title":      {},
+	"type":       {},
 	"status":     {},
 	"due_date":   {},
 	"created_at": {},
@@ -286,7 +287,7 @@ func (i *IssueService) ListIssuesByProjectFiltered(ctx context.Context, input Li
 		return []Issue{}, common.ErrInvalidProjectID
 	}
 
-	normalized, err := normalizeStringFilters(input.Filters)
+	normalized, err := normalizeFilters(input.Filters)
 	if err != nil {
 		return []Issue{}, err
 	}
@@ -328,7 +329,7 @@ func (i *IssueService) CountIssuesByProjectFiltered(ctx context.Context, input C
 		return 0, common.ErrInvalidProjectID
 	}
 
-	normalized, err := normalizeStringFilters(input.Filters)
+	normalized, err := normalizeFilters(input.Filters)
 	if err != nil {
 		return 0, err
 	}
@@ -359,7 +360,7 @@ func (i *IssueService) ListIssuesByWorkspaceFiltered(ctx context.Context, input 
 		return []Issue{}, common.ErrInvalidProjectID
 	}
 
-	normalized, err := normalizeStringFilters(input.Filters)
+	normalized, err := normalizeFilters(input.Filters)
 	if err != nil {
 		return []Issue{}, err
 	}
@@ -408,7 +409,7 @@ func (i *IssueService) CountIssuesByWorkspaceFiltered(ctx context.Context, input
 		return 0, common.ErrInvalidProjectID
 	}
 
-	normalized, err := normalizeStringFilters(input.Filters)
+	normalized, err := normalizeFilters(input.Filters)
 	if err != nil {
 		return 0, err
 	}
@@ -539,7 +540,7 @@ func mapToIssueDomain(issue db.Issue) Issue {
 	}
 }
 
-func normalizeStringFilters(input CommonFiltersInput) (NormalizedFiltersInput, error) {
+func normalizeFilters(input CommonFiltersInput) (NormalizedFiltersInput, error) {
 	var normalized NormalizedFiltersInput
 	if input.AssigneeID != "" {
 		if err := normalized.AssigneeID.Scan(input.AssigneeID); err != nil {
