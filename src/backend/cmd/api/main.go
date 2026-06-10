@@ -8,6 +8,7 @@ import (
 
 	"github.com/avast/retry-go/v4"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/jackc/pgx/v5"
 	"github.com/ottermq/otterboard/src/backend/internal/api_keys"
@@ -83,6 +84,12 @@ func InitializeFiber(cfg *config.Config) *fiber.App {
 		DisableStartupMessage: !cfg.DevMode,
 	}
 	app := fiber.New(config)
+	app.Use(cors.New(cors.Config{
+		AllowOrigins:     "http://localhost:5173",
+		AllowCredentials: true,
+		AllowMethods:     "GET,POST,PATCH,DELETE,OPTIONS",
+		AllowHeaders:     "Origiin, Content-Type, Accept",
+	}))
 	app.Use(logger.New(logger.ConfigDefault))
 	return app
 }
