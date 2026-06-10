@@ -9,6 +9,7 @@ type IssueDto struct {
 	Overview   string     `json:"overview"`
 	Type       string     `json:"type"`
 	Status     string     `json:"status"`
+	Position   float64    `json:"position"`
 	AssigneeID string     `json:"assignee_id"`
 	CreatedBy  string     `json:"created_by"`
 	DueDate    *time.Time `json:"due_date"`

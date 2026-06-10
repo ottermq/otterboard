@@ -175,6 +175,7 @@ func mapToIssueDto(issue Issue) dtos.IssueDto {
 		Overview:   issue.Overview,
 		Type:       issue.Type,
 		Status:     issue.Status,
+		Position:   issue.Position,
 		CreatedBy:  issue.CreatedBy,
 		AssigneeID: issue.AssigneeID,
 		DueDate:    issue.DueDate,
