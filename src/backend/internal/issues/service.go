@@ -67,14 +67,21 @@ func IsValidStatus(s string) bool {
 	return ok
 }
 
+var validSortFields = map[string]struct{}{
+	"title":      {},
+	"status":     {},
+	"due_date":   {},
+	"created_at": {},
+}
+
 type IssueStore interface {
 	GetMaxPositionByProjectAndStatus(ctx context.Context, arg db.GetMaxPositionByProjectAndStatusParams) (any, error)
 	CreateIssue(ctx context.Context, arg db.CreateIssueParams) (db.Issue, error)
 	GetIssueByID(ctx context.Context, arg db.GetIssueByIDParams) (db.Issue, error)
-	ListIssuesByProject(ctx context.Context, arg db.ListIssuesByProjectParams) ([]db.Issue, error)
-	CountIssuesByProject(ctx context.Context, projectID pgtype.UUID) (int64, error)
-	ListIssuesByWorkspace(ctx context.Context, arg db.ListIssuesByWorkspaceParams) ([]db.Issue, error)
-	CountIssuesByWorkspace(ctx context.Context, workspaceID pgtype.UUID) (int64, error)
+	ListIssuesByProjectFiltered(ctx context.Context, arg db.ListIssuesByProjectFilteredParams) ([]db.Issue, error)
+	CountIssuesByProjectFiltered(ctx context.Context, arg db.CountIssuesByProjectFilteredParams) (int64, error)
+	ListIssuesByWorkspaceFiltered(ctx context.Context, arg db.ListIssuesByWorkspaceFilteredParams) ([]db.Issue, error)
+	CountIssuesByWorkspaceFiltered(ctx context.Context, arg db.CountIssuesByWorkspaceFilteredParams) (int64, error)
 	UpdateIssue(ctx context.Context, arg db.UpdateIssueParams) (db.Issue, error)
 	DeleteIssue(ctx context.Context, arg db.DeleteIssueParams) error
 }
@@ -99,16 +106,50 @@ type GetMaxPositionByProjectAndStatusInput struct {
 	Status    string
 }
 
+type CommonFiltersInput struct {
+	Status     string
+	Type       string
+	AssigneeID string
+	DueBefore  *time.Time
+	DueAfter   *time.Time
+	SortBy     string
+	SortOrder  string
+}
+
+type NormalizedFiltersInput struct {
+	Status     pgtype.Text
+	Type       pgtype.Text
+	AssigneeID pgtype.UUID
+	DueBefore  pgtype.Date
+	DueAfter   pgtype.Date
+	SortBy     string
+	SortOrder  string
+}
+
 type ListIssuesByProjectInput struct {
 	ProjectID string
+	Filters   CommonFiltersInput
 	Page      int32
 	Limit     int32
 }
 
 type ListIssuesByWorkspaceInput struct {
-	WorkspaceID string
-	Page        int32
-	Limit       int32
+	WorkspaceID     string
+	ProjectIDFilter string
+	Filters         CommonFiltersInput
+	Page            int32
+	Limit           int32
+}
+
+type CountIssuesByProjectFilteredInput struct {
+	ProjectID string
+	Filters   CommonFiltersInput
+}
+
+type CountIssuesByWorkspaceFilteredInput struct {
+	WorkspaceID     string
+	ProjectIDFilter string
+	Filters         CommonFiltersInput
 }
 
 type UpdateIssueInput struct {
@@ -239,10 +280,15 @@ func (i *IssueService) GetIssueByID(ctx context.Context, input GetIssueByIdInput
 	return mapToIssueDomain(issue), nil
 }
 
-func (i *IssueService) ListIssuesByProject(ctx context.Context, input ListIssuesByProjectInput) ([]Issue, error) {
+func (i *IssueService) ListIssuesByProjectFiltered(ctx context.Context, input ListIssuesByProjectInput) ([]Issue, error) {
 	var projectUUID pgtype.UUID
 	if err := projectUUID.Scan(input.ProjectID); err != nil {
 		return []Issue{}, common.ErrInvalidProjectID
+	}
+
+	normalized, err := normalizeStringFilters(input.Filters)
+	if err != nil {
+		return []Issue{}, err
 	}
 
 	page := max(input.Page, 1)
@@ -254,10 +300,17 @@ func (i *IssueService) ListIssuesByProject(ctx context.Context, input ListIssues
 	}
 	offset := (page - 1) * limit
 
-	issues, err := i.store.ListIssuesByProject(ctx, db.ListIssuesByProjectParams{
-		ProjectID: projectUUID,
-		Limit:     limit,
-		Offset:    offset,
+	issues, err := i.store.ListIssuesByProjectFiltered(ctx, db.ListIssuesByProjectFilteredParams{
+		ProjectID:  projectUUID,
+		Status:     normalized.Status,
+		Type:       normalized.Type,
+		AssigneeID: normalized.AssigneeID,
+		DueBefore:  normalized.DueBefore,
+		DueAfter:   normalized.DueAfter,
+		SortBy:     normalized.SortBy,
+		SortOrder:  normalized.SortOrder,
+		Limit:      limit,
+		Offset:     offset,
 	})
 	if err != nil {
 		return []Issue{}, err
@@ -269,23 +322,46 @@ func (i *IssueService) ListIssuesByProject(ctx context.Context, input ListIssues
 	return domainIssues, nil
 }
 
-func (i *IssueService) CountIssuesByProject(ctx context.Context, projectID string) (int64, error) {
+func (i *IssueService) CountIssuesByProjectFiltered(ctx context.Context, input CountIssuesByProjectFilteredInput) (int64, error) {
 	var projectUUID pgtype.UUID
-	if err := projectUUID.Scan(projectID); err != nil {
+	if err := projectUUID.Scan(input.ProjectID); err != nil {
 		return 0, common.ErrInvalidProjectID
 	}
 
-	count, err := i.store.CountIssuesByProject(ctx, projectUUID)
+	normalized, err := normalizeStringFilters(input.Filters)
+	if err != nil {
+		return 0, err
+	}
+
+	count, err := i.store.CountIssuesByProjectFiltered(ctx, db.CountIssuesByProjectFilteredParams{
+		ProjectID:  projectUUID,
+		Status:     normalized.Status,
+		Type:       normalized.Type,
+		AssigneeID: normalized.AssigneeID,
+		DueBefore:  normalized.DueBefore,
+		DueAfter:   normalized.DueAfter,
+	})
 	if err != nil {
 		return 0, err
 	}
 	return count, nil
 }
 
-func (i *IssueService) ListIssuesByWorkspace(ctx context.Context, input ListIssuesByWorkspaceInput) ([]Issue, error) {
+func (i *IssueService) ListIssuesByWorkspaceFiltered(ctx context.Context, input ListIssuesByWorkspaceInput) ([]Issue, error) {
 	var workspaceUUID pgtype.UUID
 	if err := workspaceUUID.Scan(input.WorkspaceID); err != nil {
 		return []Issue{}, common.ErrInvalidWorkspaceID
+	}
+	var projectUUID pgtype.UUID
+	if input.ProjectIDFilter == "" {
+		projectUUID = pgtype.UUID{Valid: false}
+	} else if err := projectUUID.Scan(input.ProjectIDFilter); err != nil {
+		return []Issue{}, common.ErrInvalidProjectID
+	}
+
+	normalized, err := normalizeStringFilters(input.Filters)
+	if err != nil {
+		return []Issue{}, err
 	}
 
 	page := max(input.Page, 1)
@@ -296,10 +372,18 @@ func (i *IssueService) ListIssuesByWorkspace(ctx context.Context, input ListIssu
 		limit = MaxLimit
 	}
 	offset := (page - 1) * limit
-	dbIssues, err := i.store.ListIssuesByWorkspace(ctx, db.ListIssuesByWorkspaceParams{
-		WorkspaceID: workspaceUUID,
-		Limit:       limit,
-		Offset:      offset,
+	dbIssues, err := i.store.ListIssuesByWorkspaceFiltered(ctx, db.ListIssuesByWorkspaceFilteredParams{
+		WorkspaceID:     workspaceUUID,
+		ProjectIDFilter: projectUUID,
+		Status:          normalized.Status,
+		Type:            normalized.Type,
+		AssigneeID:      normalized.AssigneeID,
+		DueBefore:       normalized.DueBefore,
+		DueAfter:        normalized.DueAfter,
+		SortBy:          normalized.SortBy,
+		SortOrder:       normalized.SortOrder,
+		Limit:           limit,
+		Offset:          offset,
 	})
 	if err != nil {
 		return []Issue{}, err
@@ -311,13 +395,33 @@ func (i *IssueService) ListIssuesByWorkspace(ctx context.Context, input ListIssu
 	return domainIssues, nil
 }
 
-func (i *IssueService) CountIssuesByWorkspace(ctx context.Context, workspaceID string) (int64, error) {
+func (i *IssueService) CountIssuesByWorkspaceFiltered(ctx context.Context, input CountIssuesByWorkspaceFilteredInput) (int64, error) {
 	var workspaceUUID pgtype.UUID
-	if err := workspaceUUID.Scan(workspaceID); err != nil {
+	if err := workspaceUUID.Scan(input.WorkspaceID); err != nil {
 		return 0, common.ErrInvalidWorkspaceID
 	}
 
-	count, err := i.store.CountIssuesByWorkspace(ctx, workspaceUUID)
+	var projectUUID pgtype.UUID
+	if input.ProjectIDFilter == "" {
+		projectUUID = pgtype.UUID{Valid: false}
+	} else if err := projectUUID.Scan(input.ProjectIDFilter); err != nil {
+		return 0, common.ErrInvalidProjectID
+	}
+
+	normalized, err := normalizeStringFilters(input.Filters)
+	if err != nil {
+		return 0, err
+	}
+
+	count, err := i.store.CountIssuesByWorkspaceFiltered(ctx, db.CountIssuesByWorkspaceFilteredParams{
+		WorkspaceID:     workspaceUUID,
+		ProjectIDFilter: projectUUID,
+		Status:          normalized.Status,
+		Type:            normalized.Type,
+		AssigneeID:      normalized.AssigneeID,
+		DueBefore:       normalized.DueBefore,
+		DueAfter:        normalized.DueAfter,
+	})
 	if err != nil {
 		return 0, err
 	}
@@ -433,4 +537,40 @@ func mapToIssueDomain(issue db.Issue) Issue {
 		CreatedAt:  issue.CreatedAt.Time,
 		UpdatedAt:  issue.UpdatedAt.Time,
 	}
+}
+
+func normalizeStringFilters(input CommonFiltersInput) (NormalizedFiltersInput, error) {
+	var normalized NormalizedFiltersInput
+	if input.AssigneeID != "" {
+		if err := normalized.AssigneeID.Scan(input.AssigneeID); err != nil {
+			return normalized, ErrInvalidAssigneeID
+		}
+	}
+
+	if _, ok := validStatuses[input.Status]; ok {
+		normalized.Status = pgtype.Text{String: input.Status, Valid: true}
+	} else {
+		normalized.Status = pgtype.Text{Valid: false}
+	}
+
+	if _, ok := validTypes[input.Type]; ok {
+		normalized.Type = pgtype.Text{String: input.Type, Valid: true}
+	} else {
+		normalized.Type = pgtype.Text{Valid: false}
+	}
+
+	normalized.DueBefore = dueDateToPgDate(input.DueBefore)
+
+	normalized.DueAfter = dueDateToPgDate(input.DueAfter)
+
+	normalized.SortBy = input.SortBy
+	if _, ok := validSortFields[normalized.SortBy]; !ok {
+		normalized.SortBy = ""
+	}
+
+	normalized.SortOrder = input.SortOrder
+	if normalized.SortOrder != "desc" {
+		normalized.SortOrder = "asc"
+	}
+	return normalized, nil
 }

@@ -20,4 +20,5 @@ func RegisterIssueRoutes(wsGroup fiber.Router, h *Handler) {
 	g.Delete("/:id", middleware.RequireRole(
 		middleware.RoleAdmin),
 		h.DeleteIssue)
+	wsGroup.Get("/issues", h.ListIssuesByWorkspace)
 }

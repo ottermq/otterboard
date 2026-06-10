@@ -11,26 +11,71 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const countIssuesByProject = `-- name: CountIssuesByProject :one
+const countIssuesByProjectFiltered = `-- name: CountIssuesByProjectFiltered :one
 SELECT COUNT(*) FROM issues
 WHERE project_id = $1
+    AND ($2::text  IS NULL OR status   = $2)
+    AND ($3::text     IS NULL OR type     = $3)
+    AND ($4::uuid     IS NULL OR assignee_id  = $4)
+    AND ($5::date      IS NULL OR due_date <= $5)
+    AND ($6::date         IS NULL OR due_date >= $6)
 `
 
-func (q *Queries) CountIssuesByProject(ctx context.Context, projectID pgtype.UUID) (int64, error) {
-	row := q.db.QueryRow(ctx, countIssuesByProject, projectID)
+type CountIssuesByProjectFilteredParams struct {
+	ProjectID  pgtype.UUID
+	Status     pgtype.Text
+	Type       pgtype.Text
+	AssigneeID pgtype.UUID
+	DueBefore  pgtype.Date
+	DueAfter   pgtype.Date
+}
+
+func (q *Queries) CountIssuesByProjectFiltered(ctx context.Context, arg CountIssuesByProjectFilteredParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countIssuesByProjectFiltered,
+		arg.ProjectID,
+		arg.Status,
+		arg.Type,
+		arg.AssigneeID,
+		arg.DueBefore,
+		arg.DueAfter,
+	)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
 }
 
-const countIssuesByWorkspace = `-- name: CountIssuesByWorkspace :one
+const countIssuesByWorkspaceFiltered = `-- name: CountIssuesByWorkspaceFiltered :one
 SELECT COUNT(*) FROM issues
 JOIN projects ON issues.project_id = projects.id
 WHERE projects.workspace_id = $1
+    AND ($2::uuid IS NULL OR issues.project_id = $2)
+    AND ($3::text  IS NULL OR issues.status   = $3)
+    AND ($4::text     IS NULL OR issues.type     = $4)
+    AND ($5::uuid     IS NULL OR issues.assignee_id  = $5)
+    AND ($6::date      IS NULL OR issues.due_date <= $6)
+    AND ($7::date         IS NULL OR issues.due_date >= $7)
 `
 
-func (q *Queries) CountIssuesByWorkspace(ctx context.Context, workspaceID pgtype.UUID) (int64, error) {
-	row := q.db.QueryRow(ctx, countIssuesByWorkspace, workspaceID)
+type CountIssuesByWorkspaceFilteredParams struct {
+	WorkspaceID     pgtype.UUID
+	ProjectIDFilter pgtype.UUID
+	Status          pgtype.Text
+	Type            pgtype.Text
+	AssigneeID      pgtype.UUID
+	DueBefore       pgtype.Date
+	DueAfter        pgtype.Date
+}
+
+func (q *Queries) CountIssuesByWorkspaceFiltered(ctx context.Context, arg CountIssuesByWorkspaceFilteredParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countIssuesByWorkspaceFiltered,
+		arg.WorkspaceID,
+		arg.ProjectIDFilter,
+		arg.Status,
+		arg.Type,
+		arg.AssigneeID,
+		arg.DueBefore,
+		arg.DueAfter,
+	)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -146,21 +191,53 @@ func (q *Queries) GetMaxPositionByProjectAndStatus(ctx context.Context, arg GetM
 	return coalesce, err
 }
 
-const listIssuesByProject = `-- name: ListIssuesByProject :many
+const listIssuesByProjectFiltered = `-- name: ListIssuesByProjectFiltered :many
 SELECT id, project_id, title, overview, type, status, position, assignee_id, created_by, due_date, created_at, updated_at FROM issues
 WHERE project_id = $1
-ORDER BY position ASC 
-LIMIT $2 OFFSET $3
+    AND ($2::text  IS NULL OR status   = $2)
+    AND ($3::text     IS NULL OR type     = $3)
+    AND ($4::uuid     IS NULL OR assignee_id  = $4)
+    AND ($5::date      IS NULL OR due_date <= $5)
+    AND ($6::date         IS NULL OR due_date >= $6)
+ORDER BY
+    CASE WHEN $7::text = 'title'              AND $8::text = 'asc'       THEN title              END ASC       NULLS LAST,
+    CASE WHEN $7::text = 'title'              AND $8::text = 'desc'     THEN title              END DESC     NULLS LAST,
+    CASE WHEN $7::text = 'status'          AND $8::text = 'asc'       THEN status          END ASC       NULLS LAST,
+    CASE WHEN $7::text = 'status'          AND $8::text = 'desc'     THEN status          END DESC     NULLS LAST,
+    CASE WHEN $7::text = 'due_date'     AND $8::text = 'asc'       THEN due_date     END ASC       NULLS LAST,
+    CASE WHEN $7::text = 'due_date'     AND $8::text = 'desc'     THEN due_date     END DESC     NULLS LAST,
+    CASE WHEN $7::text = 'created_at'   AND $8::text = 'asc'       THEN created_at   END ASC       NULLS LAST,
+    CASE WHEN $7::text = 'created_at'   AND $8::text = 'desc'     THEN created_at   END DESC     NULLS LAST,
+    position ASC
+LIMIT $10 OFFSET $9
 `
 
-type ListIssuesByProjectParams struct {
-	ProjectID pgtype.UUID
-	Limit     int32
-	Offset    int32
+type ListIssuesByProjectFilteredParams struct {
+	ProjectID  pgtype.UUID
+	Status     pgtype.Text
+	Type       pgtype.Text
+	AssigneeID pgtype.UUID
+	DueBefore  pgtype.Date
+	DueAfter   pgtype.Date
+	SortBy     string
+	SortOrder  string
+	Offset     int32
+	Limit      int32
 }
 
-func (q *Queries) ListIssuesByProject(ctx context.Context, arg ListIssuesByProjectParams) ([]Issue, error) {
-	rows, err := q.db.Query(ctx, listIssuesByProject, arg.ProjectID, arg.Limit, arg.Offset)
+func (q *Queries) ListIssuesByProjectFiltered(ctx context.Context, arg ListIssuesByProjectFilteredParams) ([]Issue, error) {
+	rows, err := q.db.Query(ctx, listIssuesByProjectFiltered,
+		arg.ProjectID,
+		arg.Status,
+		arg.Type,
+		arg.AssigneeID,
+		arg.DueBefore,
+		arg.DueAfter,
+		arg.SortBy,
+		arg.SortOrder,
+		arg.Offset,
+		arg.Limit,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -192,22 +269,57 @@ func (q *Queries) ListIssuesByProject(ctx context.Context, arg ListIssuesByProje
 	return items, nil
 }
 
-const listIssuesByWorkspace = `-- name: ListIssuesByWorkspace :many
+const listIssuesByWorkspaceFiltered = `-- name: ListIssuesByWorkspaceFiltered :many
 SELECT issues.id, issues.project_id, issues.title, issues.overview, issues.type, issues.status, issues.position, issues.assignee_id, issues.created_by, issues.due_date, issues.created_at, issues.updated_at FROM issues
 JOIN projects ON issues.project_id = projects.id
 WHERE projects.workspace_id = $1
-ORDER BY issues.position ASC 
-LIMIT $2 OFFSET $3
+    AND ($2::uuid IS NULL OR issues.project_id = $2)
+    AND ($3::text  IS NULL OR issues.status   = $3)
+    AND ($4::text     IS NULL OR issues.type     = $4)
+    AND ($5::uuid     IS NULL OR issues.assignee_id  = $5)
+    AND ($6::date      IS NULL OR issues.due_date <= $6)
+    AND ($7::date         IS NULL OR issues.due_date >= $7)
+ORDER BY
+    CASE WHEN $8::text = 'title'              AND $9::text = 'asc'       THEN issues.title              END ASC       NULLS LAST,
+    CASE WHEN $8::text = 'title'              AND $9::text = 'desc'     THEN issues.title              END DESC     NULLS LAST,
+    CASE WHEN $8::text = 'status'          AND $9::text = 'asc'       THEN issues.status          END ASC       NULLS LAST,
+    CASE WHEN $8::text = 'status'          AND $9::text = 'desc'     THEN issues.status          END DESC     NULLS LAST,
+    CASE WHEN $8::text = 'due_date'     AND $9::text = 'asc'       THEN issues.due_date     END ASC       NULLS LAST,
+    CASE WHEN $8::text = 'due_date'     AND $9::text = 'desc'     THEN issues.due_date     END DESC     NULLS LAST,
+    CASE WHEN $8::text = 'created_at'   AND $9::text = 'asc'       THEN issues.created_at   END ASC       NULLS LAST,
+    CASE WHEN $8::text = 'created_at'   AND $9::text = 'desc'     THEN issues.created_at   END DESC     NULLS LAST,
+    position ASC
+LIMIT $11 OFFSET $10
 `
 
-type ListIssuesByWorkspaceParams struct {
-	WorkspaceID pgtype.UUID
-	Limit       int32
-	Offset      int32
+type ListIssuesByWorkspaceFilteredParams struct {
+	WorkspaceID     pgtype.UUID
+	ProjectIDFilter pgtype.UUID
+	Status          pgtype.Text
+	Type            pgtype.Text
+	AssigneeID      pgtype.UUID
+	DueBefore       pgtype.Date
+	DueAfter        pgtype.Date
+	SortBy          string
+	SortOrder       string
+	Offset          int32
+	Limit           int32
 }
 
-func (q *Queries) ListIssuesByWorkspace(ctx context.Context, arg ListIssuesByWorkspaceParams) ([]Issue, error) {
-	rows, err := q.db.Query(ctx, listIssuesByWorkspace, arg.WorkspaceID, arg.Limit, arg.Offset)
+func (q *Queries) ListIssuesByWorkspaceFiltered(ctx context.Context, arg ListIssuesByWorkspaceFilteredParams) ([]Issue, error) {
+	rows, err := q.db.Query(ctx, listIssuesByWorkspaceFiltered,
+		arg.WorkspaceID,
+		arg.ProjectIDFilter,
+		arg.Status,
+		arg.Type,
+		arg.AssigneeID,
+		arg.DueBefore,
+		arg.DueAfter,
+		arg.SortBy,
+		arg.SortOrder,
+		arg.Offset,
+		arg.Limit,
+	)
 	if err != nil {
 		return nil, err
 	}

@@ -57,14 +57,57 @@ func (h *Handler) ListIssues(c *fiber.Ctx) error {
 	} else if limit > MaxLimit {
 		limit = MaxLimit
 	}
-	total, err := h.service.CountIssuesByProject(c.Context(), projectId)
+	filters, err := resolveFilters(c)
 	if err != nil {
 		return common.HandlerError(c, err)
 	}
-	issueList, err := h.service.ListIssuesByProject(c.Context(), ListIssuesByProjectInput{
+	total, err := h.service.CountIssuesByProjectFiltered(c.Context(), CountIssuesByProjectFilteredInput{
 		ProjectID: projectId,
+		Filters:   filters,
+	})
+	if err != nil {
+		return common.HandlerError(c, err)
+	}
+	issueList, err := h.service.ListIssuesByProjectFiltered(c.Context(), ListIssuesByProjectInput{
+		ProjectID: projectId,
+		Filters:   filters,
 		Page:      page,
 		Limit:     limit,
+	})
+	if err != nil {
+		return common.HandlerError(c, err)
+	}
+	return c.JSON(mapListToPaginatedResponse(issueList, total, page, limit))
+}
+
+func (h *Handler) ListIssuesByWorkspace(c *fiber.Ctx) error {
+	workspaceId := c.Params("workspaceId")
+	projectId := c.Query("project")
+	page := max(int32(c.QueryInt("page")), 1)
+	limit := int32(c.QueryInt("limit"))
+	if limit < 1 {
+		limit = DefaultLimit
+	} else if limit > MaxLimit {
+		limit = MaxLimit
+	}
+	filters, err := resolveFilters(c)
+	if err != nil {
+		return common.HandlerError(c, err)
+	}
+	total, err := h.service.CountIssuesByWorkspaceFiltered(c.Context(), CountIssuesByWorkspaceFilteredInput{
+		WorkspaceID:     workspaceId,
+		ProjectIDFilter: projectId,
+		Filters:         filters,
+	})
+	if err != nil {
+		return common.HandlerError(c, err)
+	}
+	issueList, err := h.service.ListIssuesByWorkspaceFiltered(c.Context(), ListIssuesByWorkspaceInput{
+		WorkspaceID:     workspaceId,
+		ProjectIDFilter: projectId,
+		Filters:         filters,
+		Page:            page,
+		Limit:           limit,
 	})
 	if err != nil {
 		return common.HandlerError(c, err)
@@ -151,4 +194,42 @@ func mapListToPaginatedResponse(issueList []Issue, total int64, page, limit int3
 		Page:  page,
 		Limit: limit,
 	}
+}
+
+func resolveFilters(c *fiber.Ctx) (CommonFiltersInput, error) {
+	dueBefore, err := parseDueTime(c, "due_before")
+	if err != nil {
+		return CommonFiltersInput{}, err
+	}
+	dueAfter, err := parseDueTime(c, "due_after")
+	if err != nil {
+		return CommonFiltersInput{}, err
+	}
+
+	assignee := c.Query("assignee")
+	if assignee == "me" {
+		assignee, _ = common.CurrentUserID(c)
+	}
+
+	return CommonFiltersInput{
+		Status:     c.Query("status"),
+		Type:       c.Query("type"),
+		AssigneeID: assignee,
+		DueBefore:  dueBefore,
+		DueAfter:   dueAfter,
+		SortBy:     c.Query("sort"),
+		SortOrder:  c.Query("order"),
+	}, nil
+}
+
+func parseDueTime(c *fiber.Ctx, query string) (*time.Time, error) {
+	var dueTime *time.Time
+	if dueQuery := c.Query(query); dueQuery != "" {
+		parsedDueBefore, err := time.Parse("2006-01-02", dueQuery)
+		if err != nil {
+			return nil, common.ErrBadRequest
+		}
+		dueTime = &parsedDueBefore
+	}
+	return dueTime, nil
 }
