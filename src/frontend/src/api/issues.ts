@@ -26,3 +26,32 @@ export function listIssuesByWorkspace(workspaceId: string, filters: IssueFilters
         { params: filters },
     ).then(response => response.data)
 }
+
+export function createIssue(workspaceId: string, projectId: string, input: {
+    title: string
+    overview?: string
+    type: string
+    assignee_id?: string
+    due_date?: string
+}) {
+    return client.post<IssueDto>(`/workspaces/${workspaceId}/projects/${projectId}/issues`, input)
+        .then(response => response.data)
+}
+
+export function updateIssue(workspaceId: string, projectId: string, issueId: string, input: {
+    title?: string
+    overview?: string
+    type?: string
+    status?: string
+    position?: number
+    assignee_id?: string
+    due_date?: string
+}) {
+    return client.patch<IssueDto>(`/workspaces/${workspaceId}/projects/${projectId}/issues/${issueId}`, input)
+        .then(response => response.data)
+}
+
+export function deleteIssue(workspaceId: string, projectId: string, issueId: string) {
+    return client.delete(`/workspaces/${workspaceId}/projects/${projectId}/issues/${issueId}`)
+        .then(response => response.data)
+}
