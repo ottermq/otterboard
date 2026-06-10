@@ -28,19 +28,19 @@ Define the foundations before any code.
 
 ## M2 — Projects + Issues CRUD
 
-- [ ] Project create, read, update, delete
-- [ ] Issue create, read, update, delete
-- [ ] Issue fields: title, overview, type, status, assignee, due date
-- [ ] Basic REST API with proper status codes and error responses
+- [x] Project create, read, update, delete
+- [x] Issue create, read, update, delete
+- [x] Issue fields: title, overview, type, status, assignee, due date
+- [x] Basic REST API with proper status codes and error responses
 - [ ] Basic frontend: project list, issue list, create/edit forms
 
 ---
 
 ## M3 — Issue Table View
 
-- [ ] Table view with columns: Issue Name, Project, Assignee, Due Date, Status
-- [ ] Sorting by any column
-- [ ] Filters: Status, Assignee, Project, Due Date
+- [x] Table view with columns: Issue Name, Project, Assignee, Due Date, Status
+- [x] Sorting by any column
+- [x] Filters: Status, Assignee, Project, Due Date
 - [ ] My Issues view (scoped to current user)
 - [ ] Project view (scoped to selected project)
 
