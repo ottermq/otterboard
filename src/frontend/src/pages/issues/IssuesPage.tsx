@@ -7,7 +7,7 @@ import { useIssues } from "../../hooks/useIssues";
 const LIMIT = 20;
 
 export default function IssuesPage() {
-    const { workspaceId } = useParams<{ workspaceId: string }>();
+    const { workspaceId, projectId } = useParams<{ workspaceId: string; projectId?: string }>();
     const [searchParams, setSearchParams] = useSearchParams();
 
     const filters = {
@@ -44,14 +44,16 @@ export default function IssuesPage() {
 
     }
 
-    const { data, isLoading, error } = useIssues(workspaceId!, filters);
+    const { data, isLoading, error } = useIssues(workspaceId!, filters, projectId);
 
     if (isLoading) return <div className="p-8 text-gray-500">Loading...</div>
     if (error) return <div className="p-8 text-red-500">Failed to load issues</div>
 
     return (
         <div className="p-8 max-w-6xl mx-auto">
-            <h1 className="text-2xl font-semibold mb-6">Issues</h1>
+            <h1 className="text-2xl font-semibold mb-6">
+                {projectId ? 'Project Issues' : 'All Issues'}
+            </h1>
             <IssueFilters
                 status={filters.status}
                 type={filters.type}

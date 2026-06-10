@@ -1,3 +1,4 @@
+import type { PaginatedResponse } from "../types";
 import client from "./client";
 
 
@@ -21,8 +22,8 @@ export interface UpdateProjectInput {
 }
 
 export function listProjects(workspaceId: string) {
-    return client.get<ProjectDto[]>(`/workspaces/${workspaceId}/projects`)
-        .then(response => response.data)
+    return client.get<PaginatedResponse<ProjectDto>>(`/workspaces/${workspaceId}/projects`)
+        .then(response => response.data.data)
 }
 
 export function createProject(workspaceId: string, input: CreateProjectInput) {
