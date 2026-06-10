@@ -18,10 +18,10 @@ type mockIssueStore struct {
 	getMaxPositionByProjectAndStatusFn func(ctx context.Context, arg db.GetMaxPositionByProjectAndStatusParams) (any, error)
 	createIssueFn                      func(ctx context.Context, arg db.CreateIssueParams) (db.Issue, error)
 	getIssueByIDFn                     func(ctx context.Context, arg db.GetIssueByIDParams) (db.Issue, error)
-	listIssuesByProjectFn              func(ctx context.Context, arg db.ListIssuesByProjectParams) ([]db.Issue, error)
-	countIssuesByProjectFn             func(ctx context.Context, projectID pgtype.UUID) (int64, error)
-	listIssuesByWorkspaceFn            func(ctx context.Context, arg db.ListIssuesByWorkspaceParams) ([]db.Issue, error)
-	countIssuesByWorkspaceFn           func(ctx context.Context, workspaceID pgtype.UUID) (int64, error)
+	listIssuesByProjectFn              func(ctx context.Context, arg db.ListIssuesByProjectFilteredParams) ([]db.Issue, error)
+	countIssuesByProjectFn             func(ctx context.Context, arg db.CountIssuesByProjectFilteredParams) (int64, error)
+	listIssuesByWorkspaceFn            func(ctx context.Context, arg db.ListIssuesByWorkspaceFilteredParams) ([]db.Issue, error)
+	countIssuesByWorkspaceFn           func(ctx context.Context, arg db.CountIssuesByWorkspaceFilteredParams) (int64, error)
 	updateIssueFn                      func(ctx context.Context, arg db.UpdateIssueParams) (db.Issue, error)
 	deleteIssueFn                      func(ctx context.Context, arg db.DeleteIssueParams) error
 }
@@ -47,32 +47,32 @@ func (m *mockIssueStore) GetIssueByID(ctx context.Context, arg db.GetIssueByIDPa
 	return m.getIssueByIDFn(ctx, arg)
 }
 
-func (m *mockIssueStore) ListIssuesByProject(ctx context.Context, arg db.ListIssuesByProjectParams) ([]db.Issue, error) {
+func (m *mockIssueStore) ListIssuesByProjectFiltered(ctx context.Context, arg db.ListIssuesByProjectFilteredParams) ([]db.Issue, error) {
 	if m.listIssuesByProjectFn == nil {
-		panic("unexpected call to ListIssuesByProject")
+		panic("unexpected call to ListIssuesByProjectFiltered")
 	}
 	return m.listIssuesByProjectFn(ctx, arg)
 }
 
-func (m *mockIssueStore) CountIssuesByProject(ctx context.Context, projectID pgtype.UUID) (int64, error) {
+func (m *mockIssueStore) CountIssuesByProjectFiltered(ctx context.Context, arg db.CountIssuesByProjectFilteredParams) (int64, error) {
 	if m.countIssuesByProjectFn == nil {
-		panic("unexpected call to CountIssuesByProject")
+		panic("unexpected call to CountIssuesByProjectFiltered")
 	}
-	return m.countIssuesByProjectFn(ctx, projectID)
+	return m.countIssuesByProjectFn(ctx, arg)
 }
 
-func (m *mockIssueStore) ListIssuesByWorkspace(ctx context.Context, arg db.ListIssuesByWorkspaceParams) ([]db.Issue, error) {
+func (m *mockIssueStore) ListIssuesByWorkspaceFiltered(ctx context.Context, arg db.ListIssuesByWorkspaceFilteredParams) ([]db.Issue, error) {
 	if m.listIssuesByWorkspaceFn == nil {
-		panic("unexpected call to ListIssuesByWorkspace")
+		panic("unexpected call to ListIssuesByWorkspaceFiltered")
 	}
 	return m.listIssuesByWorkspaceFn(ctx, arg)
 }
 
-func (m *mockIssueStore) CountIssuesByWorkspace(ctx context.Context, workspaceID pgtype.UUID) (int64, error) {
+func (m *mockIssueStore) CountIssuesByWorkspaceFiltered(ctx context.Context, arg db.CountIssuesByWorkspaceFilteredParams) (int64, error) {
 	if m.countIssuesByWorkspaceFn == nil {
-		panic("unexpected call to CountIssuesByWorkspace")
+		panic("unexpected call to CountIssuesByWorkspaceFiltered")
 	}
-	return m.countIssuesByWorkspaceFn(ctx, workspaceID)
+	return m.countIssuesByWorkspaceFn(ctx, arg)
 }
 
 func (m *mockIssueStore) UpdateIssue(ctx context.Context, arg db.UpdateIssueParams) (db.Issue, error) {
@@ -355,7 +355,7 @@ func TestListIssuesByProject_Success(t *testing.T) {
 	issueID := mustUUID(t, "22222222-2222-2222-2222-222222222222")
 
 	store := &mockIssueStore{
-		listIssuesByProjectFn: func(ctx context.Context, arg db.ListIssuesByProjectParams) ([]db.Issue, error) {
+		listIssuesByProjectFn: func(ctx context.Context, arg db.ListIssuesByProjectFilteredParams) ([]db.Issue, error) {
 			return []db.Issue{{
 				ID:        issueID,
 				ProjectID: projectID,
@@ -363,7 +363,7 @@ func TestListIssuesByProject_Success(t *testing.T) {
 		},
 	}
 	service := issues.NewIssueService(store)
-	got, err := service.ListIssuesByProject(context.Background(), issues.ListIssuesByProjectInput{
+	got, err := service.ListIssuesByProjectFiltered(context.Background(), issues.ListIssuesByProjectInput{
 		ProjectID: projectID.String(),
 		Page:      1,
 		Limit:     1,
@@ -374,13 +374,13 @@ func TestListIssuesByProject_Success(t *testing.T) {
 
 func TestListIssuesByProject_InvalidProjectID(t *testing.T) {
 	store := &mockIssueStore{
-		listIssuesByProjectFn: func(ctx context.Context, arg db.ListIssuesByProjectParams) ([]db.Issue, error) {
+		listIssuesByProjectFn: func(ctx context.Context, arg db.ListIssuesByProjectFilteredParams) ([]db.Issue, error) {
 			t.Fatal("ListIssuesByProject should not be called with invalid input")
 			return []db.Issue{}, nil
 		},
 	}
 	service := issues.NewIssueService(store)
-	got, err := service.ListIssuesByProject(context.Background(), issues.ListIssuesByProjectInput{
+	got, err := service.ListIssuesByProjectFiltered(context.Background(), issues.ListIssuesByProjectInput{
 		ProjectID: "invalid UUID",
 		Page:      1,
 		Limit:     1,
@@ -392,12 +392,12 @@ func TestListIssuesByProject_InvalidProjectID(t *testing.T) {
 func TestListIssuesByProject_StoreError(t *testing.T) {
 	expectErr := errors.New("generic error")
 	store := &mockIssueStore{
-		listIssuesByProjectFn: func(ctx context.Context, arg db.ListIssuesByProjectParams) ([]db.Issue, error) {
+		listIssuesByProjectFn: func(ctx context.Context, arg db.ListIssuesByProjectFilteredParams) ([]db.Issue, error) {
 			return []db.Issue{}, expectErr
 		},
 	}
 	service := issues.NewIssueService(store)
-	got, err := service.ListIssuesByProject(context.Background(), issues.ListIssuesByProjectInput{
+	got, err := service.ListIssuesByProjectFiltered(context.Background(), issues.ListIssuesByProjectInput{
 		ProjectID: "11111111-1111-1111-1111-111111111111",
 		Page:      1,
 		Limit:     1,
@@ -461,7 +461,7 @@ func TestListIssuesByProject_Pagination(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			store := &mockIssueStore{
-				listIssuesByProjectFn: func(ctx context.Context, arg db.ListIssuesByProjectParams) ([]db.Issue, error) {
+				listIssuesByProjectFn: func(ctx context.Context, arg db.ListIssuesByProjectFilteredParams) ([]db.Issue, error) {
 					require.Equal(t, projectID, arg.ProjectID)
 					require.Equal(t, tt.wantLimit, arg.Limit)
 					require.Equal(t, tt.wantOffset, arg.Offset)
@@ -470,7 +470,7 @@ func TestListIssuesByProject_Pagination(t *testing.T) {
 			}
 
 			service := issues.NewIssueService(store)
-			got, err := service.ListIssuesByProject(context.Background(), issues.ListIssuesByProjectInput{
+			got, err := service.ListIssuesByProjectFiltered(context.Background(), issues.ListIssuesByProjectInput{
 				ProjectID: projectID.String(),
 				Page:      tt.page,
 				Limit:     tt.limit,
@@ -484,27 +484,31 @@ func TestListIssuesByProject_Pagination(t *testing.T) {
 func TestCountIssuesByProject_Success(t *testing.T) {
 	projectID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
 	store := &mockIssueStore{
-		countIssuesByProjectFn: func(ctx context.Context, projectID pgtype.UUID) (int64, error) {
+		countIssuesByProjectFn: func(ctx context.Context, arg db.CountIssuesByProjectFilteredParams) (int64, error) {
 			return 1, nil
 		},
 	}
 
 	service := issues.NewIssueService(store)
-	count, err := service.CountIssuesByProject(context.Background(), projectID.String())
+	count, err := service.CountIssuesByProjectFiltered(context.Background(), issues.CountIssuesByProjectFilteredInput{
+		ProjectID: projectID.String(),
+	})
 	require.NoError(t, err)
 	require.Equal(t, int64(1), count)
 }
 
 func TestCountIssuesByProject_InvalidProjectID(t *testing.T) {
 	store := &mockIssueStore{
-		countIssuesByProjectFn: func(ctx context.Context, projectID pgtype.UUID) (int64, error) {
+		countIssuesByProjectFn: func(ctx context.Context, arg db.CountIssuesByProjectFilteredParams) (int64, error) {
 			t.Fatal("CountIssuesByProject should not be called with invalid input")
 			return 0, nil
 		},
 	}
 
 	service := issues.NewIssueService(store)
-	count, err := service.CountIssuesByProject(context.Background(), "invalid UUID")
+	count, err := service.CountIssuesByProjectFiltered(context.Background(), issues.CountIssuesByProjectFilteredInput{
+		ProjectID: "invalid UUID",
+	})
 	require.ErrorIs(t, err, common.ErrInvalidProjectID)
 	require.Equal(t, int64(0), count)
 }
@@ -515,7 +519,7 @@ func TestListIssuesByWorkspace_Success(t *testing.T) {
 	issueID := mustUUID(t, "33333333-3333-3333-3333-333333333333")
 
 	store := &mockIssueStore{
-		listIssuesByWorkspaceFn: func(ctx context.Context, arg db.ListIssuesByWorkspaceParams) ([]db.Issue, error) {
+		listIssuesByWorkspaceFn: func(ctx context.Context, arg db.ListIssuesByWorkspaceFilteredParams) ([]db.Issue, error) {
 			return []db.Issue{
 				{
 					ID:        issueID,
@@ -525,7 +529,7 @@ func TestListIssuesByWorkspace_Success(t *testing.T) {
 		},
 	}
 	service := issues.NewIssueService(store)
-	got, err := service.ListIssuesByWorkspace(context.Background(), issues.ListIssuesByWorkspaceInput{
+	got, err := service.ListIssuesByWorkspaceFiltered(context.Background(), issues.ListIssuesByWorkspaceInput{
 		WorkspaceID: workspaceID.String(),
 		Page:        1,
 		Limit:       1,
@@ -537,13 +541,13 @@ func TestListIssuesByWorkspace_Success(t *testing.T) {
 func TestListIssuesByWorkspace_InvalidWorkspaceID(t *testing.T) {
 
 	store := &mockIssueStore{
-		listIssuesByWorkspaceFn: func(ctx context.Context, arg db.ListIssuesByWorkspaceParams) ([]db.Issue, error) {
+		listIssuesByWorkspaceFn: func(ctx context.Context, arg db.ListIssuesByWorkspaceFilteredParams) ([]db.Issue, error) {
 			t.Fatal("ListIssuesByWorkspace should not be called with invalid input")
 			return []db.Issue{}, nil
 		},
 	}
 	service := issues.NewIssueService(store)
-	got, err := service.ListIssuesByWorkspace(context.Background(), issues.ListIssuesByWorkspaceInput{
+	got, err := service.ListIssuesByWorkspaceFiltered(context.Background(), issues.ListIssuesByWorkspaceInput{
 		WorkspaceID: "invalid UUID",
 		Page:        1,
 		Limit:       1,
@@ -556,12 +560,12 @@ func TestListIssuesByWorkspace_StoreError(t *testing.T) {
 	workspaceID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
 	expectedErr := errors.New("generic error")
 	store := &mockIssueStore{
-		listIssuesByWorkspaceFn: func(ctx context.Context, arg db.ListIssuesByWorkspaceParams) ([]db.Issue, error) {
+		listIssuesByWorkspaceFn: func(ctx context.Context, arg db.ListIssuesByWorkspaceFilteredParams) ([]db.Issue, error) {
 			return []db.Issue{}, expectedErr
 		},
 	}
 	service := issues.NewIssueService(store)
-	got, err := service.ListIssuesByWorkspace(context.Background(), issues.ListIssuesByWorkspaceInput{
+	got, err := service.ListIssuesByWorkspaceFiltered(context.Background(), issues.ListIssuesByWorkspaceInput{
 		WorkspaceID: workspaceID.String(),
 		Page:        1,
 		Limit:       1,
@@ -625,7 +629,7 @@ func TestListIssuesByWorkspace_Pagination(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			store := &mockIssueStore{
-				listIssuesByWorkspaceFn: func(ctx context.Context, arg db.ListIssuesByWorkspaceParams) ([]db.Issue, error) {
+				listIssuesByWorkspaceFn: func(ctx context.Context, arg db.ListIssuesByWorkspaceFilteredParams) ([]db.Issue, error) {
 					require.Equal(t, workspaceID, arg.WorkspaceID)
 					require.Equal(t, tt.wantLimit, arg.Limit)
 					require.Equal(t, tt.wantOffset, arg.Offset)
@@ -634,7 +638,7 @@ func TestListIssuesByWorkspace_Pagination(t *testing.T) {
 			}
 
 			service := issues.NewIssueService(store)
-			got, err := service.ListIssuesByWorkspace(context.Background(), issues.ListIssuesByWorkspaceInput{
+			got, err := service.ListIssuesByWorkspaceFiltered(context.Background(), issues.ListIssuesByWorkspaceInput{
 				WorkspaceID: workspaceID.String(),
 				Page:        tt.page,
 				Limit:       tt.limit,
@@ -649,27 +653,31 @@ func TestCountIssuesByWorkspace_Success(t *testing.T) {
 	workspaceUUID := mustUUID(t, "11111111-1111-1111-1111-111111111111")
 
 	store := &mockIssueStore{
-		countIssuesByWorkspaceFn: func(ctx context.Context, workspaceID pgtype.UUID) (int64, error) {
+		countIssuesByWorkspaceFn: func(ctx context.Context, arg db.CountIssuesByWorkspaceFilteredParams) (int64, error) {
 			return 1, nil
 		},
 	}
 
 	service := issues.NewIssueService(store)
-	count, err := service.CountIssuesByWorkspace(context.Background(), workspaceUUID.String())
+	count, err := service.CountIssuesByWorkspaceFiltered(context.Background(), issues.CountIssuesByWorkspaceFilteredInput{
+		WorkspaceID: workspaceUUID.String(),
+	})
 	require.NoError(t, err)
 	require.Equal(t, int64(1), count)
 }
 
 func TestCountIssuesByWorkspace_InvalidWorkspaceID(t *testing.T) {
 	store := &mockIssueStore{
-		countIssuesByWorkspaceFn: func(ctx context.Context, workspaceID pgtype.UUID) (int64, error) {
+		countIssuesByWorkspaceFn: func(ctx context.Context, arg db.CountIssuesByWorkspaceFilteredParams) (int64, error) {
 			t.Fatal("CountIssuesByWorkspace should not be called with invalid input")
 			return 0, nil
 		},
 	}
 
 	service := issues.NewIssueService(store)
-	count, err := service.CountIssuesByWorkspace(context.Background(), "invalid UUID")
+	count, err := service.CountIssuesByWorkspaceFiltered(context.Background(), issues.CountIssuesByWorkspaceFilteredInput{
+		WorkspaceID: "invalid UUID",
+	})
 	require.ErrorIs(t, err, common.ErrInvalidWorkspaceID)
 	require.Equal(t, int64(0), count)
 }
