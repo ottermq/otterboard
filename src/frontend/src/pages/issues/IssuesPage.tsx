@@ -1,16 +1,18 @@
 import { useState } from 'react';
 import { useParams, useSearchParams } from "react-router-dom";
-import IssueForm from '../../components/IsssueForm';
 import IssueFilters from "../../components/IssueFilters";
+import IssueForm from '../../components/IssueForm';
 import IssueTable from "../../components/IssueTable";
+import KanbanBoard from '../../components/KanbanBoard';
 import Modal from '../../components/Modal';
 import Pagination from "../../components/Pagination";
 import { useIssues } from "../../hooks/useIssues";
 import type { IssueDto } from '../../types';
 
-const LIMIT = 20;
-
 export default function IssuesPage() {
+    const [view, setView] = useState<'table' | 'kanban'>('table')
+    const LIMIT = view === 'kanban' ? 100 : 20;
+
     const { workspaceId, projectId } = useParams<{ workspaceId: string; projectId?: string }>();
     const [searchParams, setSearchParams] = useSearchParams();
     const [showCreate, setShowCreate] = useState(false)
@@ -58,38 +60,66 @@ export default function IssuesPage() {
     return (
         <div className="p-8 max-w-6xl mx-auto">
             <div className="flex items-center justify-between mb-6">
-                <h1 className="text-2xl font-semibold">
-                    {projectId ? 'Project Issues' : 'All Issues'}
-                </h1>
-                {projectId && (
+                <h1 className="text-2xl font-semibold">{projectId ? 'Project Issues' : 'All Issues'}</h1>
+                <div className="flex items-center gap-2">
                     <button
-                        onClick={() => setShowCreate(true)}
-                        className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                        onClick={() => setView('table')}
+                        className={`px-3 py-1.5 text-sm rounded 
+                            ${view === 'table'
+                                ? 'bg-gray-200 font-medium'
+                                : 'text-gray-500 hover:bg-gray-100'
+                            }`}
                     >
-                        New Issue
+                        Table
                     </button>
-                )}
+                    <button
+                        onClick={() => setView('kanban')}
+                        className={`px-3 py-1.5 text-sm rounded 
+                            ${view === 'kanban'
+                                ? 'bg-gray-200 font-medium'
+                                : 'text-gray-500 hover:bg-gray-100'
+                            }`}
+                    >
+                        Kanban
+                    </button>
+                    {projectId && (
+                        <button
+                            onClick={() => setShowCreate(true)}
+                            className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                        >
+                            New Issue
+                        </button>
+                    )}
+                </div>
             </div>
-            <IssueFilters
-                status={filters.status}
-                type={filters.type}
-                dueBefore={filters.due_before}
-                dueAfter={filters.due_after}
-                onFilter={setFilter}
-            />
-            <IssueTable
-                issues={data?.data ?? []}
-                sortBy={filters.sort}
-                sortOrder={filters.order}
-                onSort={handleSort}
-                onRowClick={projectId ? setEditIssue : undefined}
-            />
-            <Pagination
-                page={filters.page}
-                limit={LIMIT}
-                total={data?.total ?? 0}
-                onPage={page => setFilter('page', String(page))}
-            />
+            {view === 'table' ? (
+                <>
+                    <IssueFilters
+                        status={filters.status}
+                        type={filters.type}
+                        dueBefore={filters.due_before}
+                        dueAfter={filters.due_after}
+                        onFilter={setFilter}
+                    />
+                    <IssueTable
+                        issues={data?.data ?? []}
+                        sortBy={filters.sort}
+                        sortOrder={filters.order}
+                        onSort={handleSort}
+                        onRowClick={projectId ? setEditIssue : undefined}
+                    />
+                    <Pagination
+                        page={filters.page}
+                        limit={LIMIT}
+                        total={data?.total ?? 0}
+                        onPage={page => setFilter('page', String(page))}
+                    />
+                </>
+            ) : (
+                <KanbanBoard
+                    issues={data?.data ?? []}
+                    workspaceId={workspaceId!} />
+            )}
             {showCreate && projectId && (
                 <Modal title="New Issue" onClose={() => setShowCreate(false)}>
                     <IssueForm
