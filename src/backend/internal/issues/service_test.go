@@ -166,7 +166,7 @@ func TestCreateIssue_ValidationErrors(t *testing.T) {
 				CreatedBy:  validUserID.String(),
 				DueDate:    &time.Time{},
 			},
-			wantError: issues.ErrInvalidAssigneeID,
+			wantError: common.ErrInvalidAssigneeID,
 		},
 		{
 			name: "invalid user Id",
@@ -768,7 +768,7 @@ func TestUpdateIssue_ValidationErrors(t *testing.T) {
 				AssigneeID: "invalid UUID",
 				DueDate:    &time.Time{},
 			},
-			wantError: issues.ErrInvalidAssigneeID,
+			wantError: common.ErrInvalidAssigneeID,
 		},
 		{
 			name: "invalid title",

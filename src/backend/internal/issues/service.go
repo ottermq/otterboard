@@ -13,12 +13,11 @@ import (
 )
 
 var (
-	ErrInvalidTitle      = common.NewAppError(http.StatusBadRequest, "invalid issue title")
-	ErrInvalidType       = common.NewAppError(http.StatusBadRequest, "invalid issue type")
-	ErrInvalidStatus     = common.NewAppError(http.StatusBadRequest, "invalid issue status")
-	ErrInvalidAssigneeID = common.NewAppError(http.StatusBadRequest, "invalid assignee ID")
-	ErrInvalidIssueID    = common.NewAppError(http.StatusBadRequest, "invalid issue ID")
-	ErrIssueNotFound     = common.NewAppError(http.StatusNotFound, "issue not found")
+	ErrInvalidTitle   = common.NewAppError(http.StatusBadRequest, "invalid issue title")
+	ErrInvalidType    = common.NewAppError(http.StatusBadRequest, "invalid issue type")
+	ErrInvalidStatus  = common.NewAppError(http.StatusBadRequest, "invalid issue status")
+	ErrInvalidIssueID = common.NewAppError(http.StatusBadRequest, "invalid issue ID")
+	ErrIssueNotFound  = common.NewAppError(http.StatusNotFound, "issue not found")
 )
 
 const (
@@ -188,7 +187,7 @@ func (i *IssueService) CreateIssue(ctx context.Context, input CreateIssueInput) 
 	var assigneeUUID pgtype.UUID
 	if input.AssigneeID != "" {
 		if err := assigneeUUID.Scan(input.AssigneeID); err != nil {
-			return Issue{}, ErrInvalidAssigneeID
+			return Issue{}, common.ErrInvalidAssigneeID
 		}
 	}
 	var createdByUUID pgtype.UUID
@@ -441,7 +440,7 @@ func (i *IssueService) UpdateIssue(ctx context.Context, input UpdateIssueInput) 
 	var assigneeUUID pgtype.UUID
 	if input.AssigneeID != "" {
 		if err := assigneeUUID.Scan(input.AssigneeID); err != nil {
-			return Issue{}, ErrInvalidAssigneeID
+			return Issue{}, common.ErrInvalidAssigneeID
 		}
 	}
 	if input.Title == "" {
@@ -544,7 +543,7 @@ func normalizeFilters(input CommonFiltersInput) (NormalizedFiltersInput, error) 
 	var normalized NormalizedFiltersInput
 	if input.AssigneeID != "" {
 		if err := normalized.AssigneeID.Scan(input.AssigneeID); err != nil {
-			return normalized, ErrInvalidAssigneeID
+			return normalized, common.ErrInvalidAssigneeID
 		}
 	}
 
