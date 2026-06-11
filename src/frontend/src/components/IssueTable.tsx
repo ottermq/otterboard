@@ -34,9 +34,10 @@ interface Props {
     sortBy?: string
     sortOrder?: string
     onSort: (key: string) => void
+    onRowClick?: (issue: IssueDto) => void
 }
 
-export default function IssueTable({ issues, sortBy, sortOrder, onSort }: Props) {
+export default function IssueTable({ issues, sortBy, sortOrder, onSort, onRowClick }: Props) {
     function SortIndicator({ column }: { column: string }) {
         if (sortBy !== column) return <span className="ml-1 text-gray-300">⇅</span>
         return <span className="ml-1">{sortOrder === 'desc' ? '↓' : '↑'}</span>
@@ -70,7 +71,10 @@ export default function IssueTable({ issues, sortBy, sortOrder, onSort }: Props)
                             </td>
                         </tr>
                     ) : issues.map(issue => (
-                        <tr key={issue.id} className="hover:bg-gray-50">
+                        <tr
+                            key={issue.id}
+                            onClick={() => onRowClick?.(issue)}
+                            className={`hover:bg-gray-50 ${onRowClick ? 'cursor-pointer' : ''}`}>
                             <td className="px-4 py-3 font-medium text-gray-900">{issue.title}</td>
                             <td className="px-4 py-3 text-gray-600">{TYPE_LABELS[issue.type] ??
                                 issue.type}</td>

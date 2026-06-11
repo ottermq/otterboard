@@ -32,7 +32,7 @@ Define the foundations before any code.
 - [x] Issue create, read, update, delete
 - [x] Issue fields: title, overview, type, status, assignee, due date
 - [x] Basic REST API with proper status codes and error responses
-- [ ] Basic frontend: project list, issue list, create/edit forms
+- [x] Basic frontend: project list, issue list, create/edit forms
 
 ---
 
@@ -41,8 +41,8 @@ Define the foundations before any code.
 - [x] Table view with columns: Issue Name, Project, Assignee, Due Date, Status
 - [x] Sorting by any column
 - [x] Filters: Status, Assignee, Project, Due Date
-- [ ] My Issues view (scoped to current user)
-- [ ] Project view (scoped to selected project)
+- [ ] My Issues view (scoped to current user) ← deferred to M4 sidebar navigation
+- [ ] Project view (scoped to selected project) ← deferred to M4 sidebar navigation
 
 ---
 

@@ -1,14 +1,20 @@
+import { useState } from 'react';
 import { useParams, useSearchParams } from "react-router-dom";
+import IssueForm from '../../components/IsssueForm';
 import IssueFilters from "../../components/IssueFilters";
 import IssueTable from "../../components/IssueTable";
+import Modal from '../../components/Modal';
 import Pagination from "../../components/Pagination";
 import { useIssues } from "../../hooks/useIssues";
+import type { IssueDto } from '../../types';
 
 const LIMIT = 20;
 
 export default function IssuesPage() {
-    const { workspaceId } = useParams<{ workspaceId: string }>();
+    const { workspaceId, projectId } = useParams<{ workspaceId: string; projectId?: string }>();
     const [searchParams, setSearchParams] = useSearchParams();
+    const [showCreate, setShowCreate] = useState(false)
+    const [editIssue, setEditIssue] = useState<IssueDto | null>(null)
 
     const filters = {
         status: searchParams.get('status') ?? undefined,
@@ -44,14 +50,26 @@ export default function IssuesPage() {
 
     }
 
-    const { data, isLoading, error } = useIssues(workspaceId!, filters);
+    const { data, isLoading, error } = useIssues(workspaceId!, filters, projectId);
 
     if (isLoading) return <div className="p-8 text-gray-500">Loading...</div>
     if (error) return <div className="p-8 text-red-500">Failed to load issues</div>
 
     return (
         <div className="p-8 max-w-6xl mx-auto">
-            <h1 className="text-2xl font-semibold mb-6">Issues</h1>
+            <div className="flex items-center justify-between mb-6">
+                <h1 className="text-2xl font-semibold">
+                    {projectId ? 'Project Issues' : 'All Issues'}
+                </h1>
+                {projectId && (
+                    <button
+                        onClick={() => setShowCreate(true)}
+                        className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                    >
+                        New Issue
+                    </button>
+                )}
+            </div>
             <IssueFilters
                 status={filters.status}
                 type={filters.type}
@@ -64,6 +82,7 @@ export default function IssuesPage() {
                 sortBy={filters.sort}
                 sortOrder={filters.order}
                 onSort={handleSort}
+                onRowClick={projectId ? setEditIssue : undefined}
             />
             <Pagination
                 page={filters.page}
@@ -71,6 +90,26 @@ export default function IssuesPage() {
                 total={data?.total ?? 0}
                 onPage={page => setFilter('page', String(page))}
             />
+            {showCreate && projectId && (
+                <Modal title="New Issue" onClose={() => setShowCreate(false)}>
+                    <IssueForm
+                        workspaceId={workspaceId!}
+                        projectId={projectId}
+                        onClose={() => setShowCreate(false)}
+                    />
+                </Modal>
+            )}
+
+            {editIssue && projectId && (
+                <Modal title="Edit Issue" onClose={() => setEditIssue(null)}>
+                    <IssueForm
+                        workspaceId={workspaceId!}
+                        projectId={projectId}
+                        issue={editIssue}
+                        onClose={() => setEditIssue(null)}
+                    />
+                </Modal>
+            )}
         </div>
     )
 }
