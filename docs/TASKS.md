@@ -41,17 +41,17 @@ Define the foundations before any code.
 - [x] Table view with columns: Issue Name, Project, Assignee, Due Date, Status
 - [x] Sorting by any column
 - [x] Filters: Status, Assignee, Project, Due Date
-- [ ] My Issues view (scoped to current user) ← deferred to M4 sidebar navigation
-- [ ] Project view (scoped to selected project) ← deferred to M4 sidebar navigation
+- [x] My Issues view (scoped to current user) ← deferred to M4 sidebar navigation
+- [x] Project view (scoped to selected project) ← deferred to M4 sidebar navigation
 
 ---
 
 ## M4 — Kanban Board
 
-- [ ] Kanban view with status columns
-- [ ] Drag-and-drop issue cards
-- [ ] Status update on drop (REST PATCH + optimistic UI)
-- [ ] Available in both My Issues and Project views
+- [x] Kanban view with status columns
+- [x] Drag-and-drop issue cards
+- [x] Status update on drop (REST PATCH + optimistic UI)
+- [x] Available in both My Issues and Project views
 
 ---
 
