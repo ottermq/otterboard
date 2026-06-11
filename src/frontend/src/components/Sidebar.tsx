@@ -114,7 +114,7 @@ export default function Sidebar() {
                     {projects?.map(project => (
                         <NavLink
                             key={project.id}
-                            to={`/workspace/${workspaceId}/projects/${project.id}/issues`}
+                            to={`/workspaces/${workspaceId}/projects/${project.id}/issues`}
                             className={navClass}
                         >
                             <span className='w-6 h-6 rounded bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center shrink-0'>
