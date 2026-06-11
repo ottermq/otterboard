@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, useSearchParams } from "react-router-dom";
-import IssueForm from '../../components/IsssueForm';
 import IssueFilters from "../../components/IssueFilters";
+import IssueForm from '../../components/IssueForm';
 import IssueTable from "../../components/IssueTable";
 import Modal from '../../components/Modal';
 import Pagination from "../../components/Pagination";
