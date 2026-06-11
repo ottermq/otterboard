@@ -45,7 +45,7 @@ export function updateIssue(workspaceId: string, projectId: string, issueId: str
     status?: string
     position?: number
     assignee_id?: string
-    due_date?: string
+    due_date?: string | null
 }) {
     return client.patch<IssueDto>(`/workspaces/${workspaceId}/projects/${projectId}/issues/${issueId}`, input)
         .then(response => response.data)

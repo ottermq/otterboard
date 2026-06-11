@@ -5,6 +5,7 @@ export interface IssueDto {
     overview: string;
     type: string;
     status: string;
+    position: number;
     assignee_id: string;
     created_by: string;
     due_date: string | null;
