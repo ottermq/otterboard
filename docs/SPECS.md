@@ -69,9 +69,9 @@ Services do not perform authorization checks. They receive no `RequestorID` and 
 - Workspaces (switcher)
 - Home
 - My Issues
+- Settings
 - Members
 - Projects
-- Settings
 
 ### Home View
 
