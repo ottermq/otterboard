@@ -10,7 +10,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/ottermq/otterboard/src/backend/internal/api_keys"
 	"github.com/ottermq/otterboard/src/backend/internal/auth"
 	"github.com/ottermq/otterboard/src/backend/internal/config"
@@ -28,12 +28,12 @@ import (
 func main() {
 	cfg := config.LoadConfig()
 
-	conn, err := pgx.Connect(context.Background(), cfg.DatabaseURL)
+	pool, err := pgxpool.New(context.Background(), cfg.DatabaseURL)
 	if err != nil {
-		log.Fatalf("failed to connect to database: %v", err)
+		log.Fatalf("failed to create connection pool: %v", err)
 	}
-	defer conn.Close(context.Background())
-	queries := db.New(conn)
+	defer pool.Close()
+	queries := db.New(pool)
 
 	app := InitializeFiber(cfg)
 
