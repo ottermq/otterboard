@@ -21,6 +21,7 @@ import (
 	"github.com/ottermq/otterboard/src/backend/internal/middleware"
 	"github.com/ottermq/otterboard/src/backend/internal/projects"
 	"github.com/ottermq/otterboard/src/backend/internal/routes"
+	"github.com/ottermq/otterboard/src/backend/internal/stats"
 	"github.com/ottermq/otterboard/src/backend/internal/workspaces"
 	"github.com/redis/go-redis/v9"
 )
@@ -72,6 +73,10 @@ func main() {
 	issueService := issues.NewIssueService(queries)
 	issueHandler := issues.NewHandler(issueService)
 	issues.RegisterIssueRoutes(wsGroup, issueHandler)
+
+	statsService := stats.NewStatsService(queries)
+	statsHandler := stats.NewHandler(statsService)
+	stats.RegisterStatsRoutes(wsGroup, statsHandler)
 
 	log.Fatal(app.Listen(fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)))
 }

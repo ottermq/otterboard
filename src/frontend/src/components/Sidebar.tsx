@@ -80,8 +80,11 @@ export default function Sidebar() {
 
             {/* Nav */}
             <nav className='px-3 py-3 flex flex-col gap-1'>
+                <NavLink to={`/workspaces/${workspaceId}/home`} className={navClass}>
+                    <span>🏠</span><span>Home</span>
+                </NavLink>
                 <NavLink to={`/workspaces/${workspaceId}/issues?assignee=me`} className={navClass}>
-                    <span>🏠</span><span>My Issues</span>
+                    <span>📋</span><span>My Issues</span>
                 </NavLink>
                 <NavLink to={`/workspaces/${workspaceId}/issues`} end className={navClass}>
                     <span>✅</span><span>All Issues</span>

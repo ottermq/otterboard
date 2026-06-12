@@ -54,7 +54,7 @@ export default function KanbanBoard({ issues, workspaceId }: Props) {
 
     return (
         <DndContext onDragEnd={handleDragEnd}>
-            <div className="flex gap-4 overflow-x-auto pb4">
+            <div className="flex gap-4 pb-4">
                 {COLUMNS.map(col => (
                     <KanbanColumn
                         key={col.key}

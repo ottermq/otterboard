@@ -14,7 +14,7 @@ export default function KanbanColumn({ status, label, issues }: Props) {
     return (
         <div
             ref={setNodeRef}
-            className={`w-64 shrink-0 rounded-lg p-3 flex flex-col gap-2 min-h-32 transition-colors
+            className={`flex-1 min-w-40 rounded-lg p-3 flex flex-col gap-2 min-h-32 transition-colors
                 ${isOver
                     ? 'bg-blue-50 border-2 border-blue-200'
                     : 'bg-gray-100'
