@@ -33,7 +33,7 @@ interface Props {
     issues: IssueDto[]
     sortBy?: string
     sortOrder?: string
-    onSort: (key: string) => void
+    onSort?: (key: string) => void
     onRowClick?: (issue: IssueDto) => void
 }
 
@@ -50,7 +50,7 @@ export default function IssueTable({ issues, sortBy, sortOrder, onSort, onRowCli
                     <tr>
                         {COLUMNS.map(col => (
                             <th key={col.key} className="px-4 py-3 font-medium">
-                                {col.sortable ? (
+                                {col.sortable && onSort ? (
                                     <button
                                         onClick={() => onSort(col.key)}
                                         className="flex items-center hover:text-gray-900"
