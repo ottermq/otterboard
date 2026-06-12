@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useParams, useSearchParams } from "react-router-dom";
+import CalendarView from '../../components/CalendarView';
 import IssueFilters from "../../components/IssueFilters";
 import IssueForm from '../../components/IssueForm';
 import IssueTable from "../../components/IssueTable";
@@ -10,7 +11,7 @@ import { useIssues } from "../../hooks/useIssues";
 import type { IssueDto } from '../../types';
 
 export default function IssuesPage() {
-    const [view, setView] = useState<'table' | 'kanban'>('table')
+    const [view, setView] = useState<'table' | 'kanban' | 'calendar'>('table')
     const LIMIT = view === 'kanban' ? 100 : 20;
 
     const { workspaceId, projectId } = useParams<{ workspaceId: string; projectId?: string }>();
@@ -82,6 +83,16 @@ export default function IssuesPage() {
                     >
                         Kanban
                     </button>
+                    <button
+                        onClick={() => setView('calendar')}
+                        className={`px-3 py-1.5 text-sm rounded 
+                            ${view === 'calendar'
+                                ? 'bg-gray-200 font-medium'
+                                : 'text-gray-500 hover:bg-gray-100'
+                            }`}
+                    >
+                        Calendar
+                    </button>
                     {projectId && (
                         <button
                             onClick={() => setShowCreate(true)}
@@ -115,10 +126,12 @@ export default function IssuesPage() {
                         onPage={page => setFilter('page', String(page))}
                     />
                 </>
-            ) : (
+            ) : view === 'kanban' ? (
                 <KanbanBoard
                     issues={data?.data ?? []}
                     workspaceId={workspaceId!} />
+            ) : (
+                <CalendarView workspaceId={workspaceId!} projectId={projectId} />
             )}
             {showCreate && projectId && (
                 <Modal title="New Issue" onClose={() => setShowCreate(false)}>
